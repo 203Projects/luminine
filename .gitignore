@@ -1,0 +1,17 @@
+.gradle/
+.idea/
+.kotlin/
+build/
+**/build/
+local.properties
+captures/
+*.iml
+*.keystore
+*.jks
+*.apk
+*.aab
+DerivedData/
+iosApp/Pods/
+iosApp/*.xcworkspace/
+xcuserdata/
+*.xcuserstate
