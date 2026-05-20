@@ -1,6 +1,7 @@
 package com.reverse.healthtracker
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,13 +20,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
@@ -70,6 +71,14 @@ import com.reverse.healthtracker.model.InbodyRecord
 import com.reverse.healthtracker.model.MemberDailySummary
 import com.reverse.healthtracker.model.Routine
 import com.reverse.healthtracker.model.RoutineCategory
+import com.reverse.healthtracker.ui.IconLabel
+import com.reverse.healthtracker.ui.ReverseIcon
+import com.reverse.healthtracker.ui.components.IconTile
+import com.reverse.healthtracker.ui.components.ReverseIconView
+import com.reverse.healthtracker.ui.healthTopics
+import com.reverse.healthtracker.ui.icon
+import com.reverse.healthtracker.ui.quickActions
+import com.reverse.healthtracker.ui.topLevelDestinations
 import com.reverse.healthtracker.ui.theme.ReverseCoral
 import com.reverse.healthtracker.ui.theme.ReverseEspresso
 import com.reverse.healthtracker.ui.theme.ReverseGold
@@ -101,13 +110,32 @@ fun App() {
             topBar = {
                 TopAppBar(
                     title = {
-                        Column {
-                            Text("REVERSE", fontWeight = FontWeight.Bold)
-                            Text("안티에이징 루틴 트래커", style = MaterialTheme.typography.labelMedium)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            IconTile(
+                                icon = ReverseIcon.Sparkles,
+                                contentDescription = "REVERSE",
+                                size = 42.dp,
+                                background = ReverseEspresso,
+                                tint = Color.White,
+                            )
+                            Column {
+                                Text("REVERSE", fontWeight = FontWeight.Bold)
+                                Text("안티에이징 루틴 트래커", style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     },
                     actions = {
                         TextButton(onClick = { isAdmin = !isAdmin }) {
+                            ReverseIconView(
+                                icon = if (isAdmin) ReverseIcon.User else ReverseIcon.Admin,
+                                contentDescription = null,
+                                tint = ReverseGold,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
                             Text(if (isAdmin) "회원" else "관리자")
                         }
                     },
@@ -115,12 +143,20 @@ fun App() {
             },
             bottomBar = {
                 if (!isAdmin) {
+                    val destinations = topLevelDestinations()
                     NavigationBar {
-                        MainTab.entries.forEach { tab ->
+                        MainTab.entries.forEachIndexed { index, tab ->
+                            val destination = destinations[index]
                             NavigationBarItem(
                                 selected = selectedTab == tab,
                                 onClick = { selectedTab = tab },
-                                icon = { Text(tab.label.take(1)) },
+                                icon = {
+                                    ReverseIconView(
+                                        icon = destination.icon,
+                                        contentDescription = destination.contentDescription,
+                                        tint = if (selectedTab == tab) ReverseEspresso else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
                                 label = { Text(tab.label) },
                             )
                         }
@@ -239,6 +275,13 @@ private fun HomeScreen(
         }
         item {
             Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                ReverseIconView(
+                    icon = ReverseIcon.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(8.dp))
                 Text("기록 저장")
             }
         }
@@ -249,10 +292,21 @@ private fun HomeScreen(
 private fun HeroScoreCard(score: Int, streak: Int) {
     Card(colors = CardDefaults.cardColors(containerColor = ReverseEspresso), shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("오늘의 실천지수", color = Color.White.copy(alpha = 0.8f))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text("$score", style = MaterialTheme.typography.displayMedium, color = Color.White, fontWeight = FontWeight.Bold)
-                Text(" / 100점", color = Color.White.copy(alpha = 0.8f), modifier = Modifier.padding(bottom = 8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text("오늘의 실천지수", color = Color.White.copy(alpha = 0.8f))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("$score", style = MaterialTheme.typography.displayMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(" / 100점", color = Color.White.copy(alpha = 0.8f), modifier = Modifier.padding(bottom = 8.dp))
+                    }
+                }
+                IconTile(
+                    icon = ReverseIcon.Trophy,
+                    contentDescription = "연속 달성",
+                    size = 58.dp,
+                    background = ReverseGold,
+                    tint = Color.White,
+                )
             }
             LinearProgressIndicator(
                 progress = { score / 100f },
@@ -260,7 +314,10 @@ private fun HeroScoreCard(score: Int, streak: Int) {
                 color = ReverseGreen,
                 trackColor = Color.White.copy(alpha = 0.25f),
             )
-            Text("연속 달성 $streak 일", color = Color.White)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MiniSignal("연속 $streak 일", ReverseIcon.Check)
+                MiniSignal("AI 케어 대기", ReverseIcon.Care)
+            }
         }
     }
 }
@@ -268,7 +325,25 @@ private fun HeroScoreCard(score: Int, streak: Int) {
 @Composable
 private fun NoticeCard(text: String) {
     Card(shape = RoundedCornerShape(8.dp)) {
-        Text(text, modifier = Modifier.padding(14.dp), style = MaterialTheme.typography.bodyMedium)
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconTile(ReverseIcon.Sparkles, "공지", size = 38.dp, background = ReverseGold.copy(alpha = 0.18f), tint = ReverseGold)
+            Text(text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun MiniSignal(label: String, icon: ReverseIcon) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.12f))
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        ReverseIconView(icon = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+        Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium)
     }
 }
 
@@ -281,11 +356,21 @@ private fun CategoryChips(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterChip(selected = selected == null, onClick = { onSelected(null) }, label = { Text("전체") })
+        FilterChip(
+            selected = selected == null,
+            onClick = { onSelected(null) },
+            leadingIcon = {
+                ReverseIconView(ReverseIcon.Menu, null, Modifier.size(17.dp), tint = ReverseGold)
+            },
+            label = { Text("전체") },
+        )
         RoutineCategory.entries.forEach { category ->
             FilterChip(
                 selected = selected == category,
                 onClick = { onSelected(category) },
+                leadingIcon = {
+                    ReverseIconView(category.icon(), null, Modifier.size(17.dp), tint = ReverseGold)
+                },
                 label = { Text(category.label) },
             )
         }
@@ -304,6 +389,14 @@ private fun RoutineRow(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            IconTile(
+                icon = if (checked) ReverseIcon.Check else routine.category.icon(),
+                contentDescription = routine.category.label,
+                size = 42.dp,
+                background = if (checked) ReverseGreen.copy(alpha = 0.15f) else ReverseGold.copy(alpha = 0.14f),
+                tint = if (checked) ReverseGreen else ReverseGold,
+            )
+            Spacer(Modifier.width(10.dp))
             Checkbox(checked = checked, onCheckedChange = onCheckedChange)
             Column(Modifier.weight(1f)) {
                 Text(
@@ -313,7 +406,9 @@ private fun RoutineRow(
                 )
                 Text(routine.category.label, style = MaterialTheme.typography.labelMedium, color = ReverseGold)
             }
-            TextButton(onClick = onDelete) { Text("삭제") }
+            TextButton(onClick = onDelete) {
+                ReverseIconView(ReverseIcon.Trash, "삭제", Modifier.size(18.dp), tint = ReverseCoral)
+            }
         }
     }
 }
@@ -328,7 +423,10 @@ private fun AddRoutineCard(
 ) {
     Card(shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("루틴 추가", fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                IconTile(ReverseIcon.Plus, "루틴 추가", size = 36.dp, background = ReverseGreen.copy(alpha = 0.14f), tint = ReverseGreen)
+                Text("루틴 추가", fontWeight = FontWeight.Bold)
+            }
             OutlinedTextField(
                 value = name,
                 onValueChange = onNameChange,
@@ -341,11 +439,16 @@ private fun AddRoutineCard(
                     FilterChip(
                         selected = category == item,
                         onClick = { onCategoryChange(item) },
+                        leadingIcon = { ReverseIconView(item.icon(), null, Modifier.size(16.dp), tint = ReverseGold) },
                         label = { Text(item.label) },
                     )
                 }
             }
-            OutlinedButton(onClick = onAdd, modifier = Modifier.fillMaxWidth()) { Text("추가") }
+            OutlinedButton(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
+                ReverseIconView(ReverseIcon.Plus, null, Modifier.size(18.dp), tint = ReverseGold)
+                Spacer(Modifier.width(6.dp))
+                Text("추가")
+            }
         }
     }
 }
@@ -357,10 +460,13 @@ private fun ConditionCard(
 ) {
     Card(shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("컨디션", fontWeight = FontWeight.Bold)
-            ConditionSlider("에너지", condition.energy) { onChange(condition.copy(energy = it)) }
-            ConditionSlider("피부 상태", condition.skin) { onChange(condition.copy(skin = it)) }
-            ConditionSlider("수면 품질", condition.sleep) { onChange(condition.copy(sleep = it)) }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                IconTile(ReverseIcon.Energy, "컨디션", size = 36.dp, background = ReverseCoral.copy(alpha = 0.13f), tint = ReverseCoral)
+                Text("컨디션", fontWeight = FontWeight.Bold)
+            }
+            ConditionSlider("에너지", ReverseIcon.Energy, condition.energy) { onChange(condition.copy(energy = it)) }
+            ConditionSlider("피부 상태", ReverseIcon.Skin, condition.skin) { onChange(condition.copy(skin = it)) }
+            ConditionSlider("수면 품질", ReverseIcon.Sleep, condition.sleep) { onChange(condition.copy(sleep = it)) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("😫", "😕", "😊", "😄", "🔥").forEach { emoji ->
                     FilterChip(
@@ -375,10 +481,13 @@ private fun ConditionCard(
 }
 
 @Composable
-private fun ConditionSlider(label: String, value: Int, onValueChange: (Int) -> Unit) {
+private fun ConditionSlider(label: String, icon: ReverseIcon, value: Int, onValueChange: (Int) -> Unit) {
     Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ReverseIconView(icon, null, Modifier.size(18.dp), tint = ReverseGold)
+                Text(label)
+            }
             Text("$value/5", fontWeight = FontWeight.Bold)
         }
         Slider(
@@ -392,14 +501,34 @@ private fun ConditionSlider(label: String, value: Int, onValueChange: (Int) -> U
 
 @Composable
 private fun QuickMenuGrid() {
-    val items = listOf("인바디", "식단", "영양제", "스킨케어", "사진", "리포트", "Shop", "문의")
+    val items = quickActions()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.chunked(4).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                row.forEach { label ->
-                    AssistChip(onClick = {}, label = { Text(label) }, modifier = Modifier.weight(1f))
+                row.forEach { action ->
+                    QuickActionCard(action, Modifier.weight(1f))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionCard(action: IconLabel, modifier: Modifier = Modifier) {
+    ElevatedCard(
+        onClick = {},
+        modifier = modifier.height(86.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(8.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            IconTile(action.icon, action.contentDescription, size = 34.dp, background = ReverseGold.copy(alpha = 0.12f), tint = ReverseGold)
+            Spacer(Modifier.height(6.dp))
+            Text(action.label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -414,9 +543,9 @@ private fun ChartsScreen(modifier: Modifier, records: List<DailyRecord>, routine
     ) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricCard("달성률", "${averageScore(records)}%", Modifier.weight(1f))
-                MetricCard("평균 에너지", "${(averageEnergy(records) * 10).toInt() / 10.0}", Modifier.weight(1f))
-                MetricCard("연속", "5일", Modifier.weight(1f))
+                MetricCard("달성률", "${averageScore(records)}%", Modifier.weight(1f), ReverseIcon.Chart)
+                MetricCard("평균 에너지", "${(averageEnergy(records) * 10).toInt() / 10.0}", Modifier.weight(1f), ReverseIcon.Energy)
+                MetricCard("연속", "5일", Modifier.weight(1f), ReverseIcon.Trophy)
             }
         }
         item { MonthlyCalendar(buckets) }
@@ -429,9 +558,10 @@ private fun ChartsScreen(modifier: Modifier, records: List<DailyRecord>, routine
 }
 
 @Composable
-private fun MetricCard(label: String, value: String, modifier: Modifier = Modifier) {
+private fun MetricCard(label: String, value: String, modifier: Modifier = Modifier, icon: ReverseIcon = ReverseIcon.Chart) {
     Card(modifier = modifier, shape = RoundedCornerShape(8.dp)) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            IconTile(icon, label, size = 32.dp, background = ReverseGold.copy(alpha = 0.13f), tint = ReverseGold)
             Text(label, style = MaterialTheme.typography.labelMedium)
             Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
@@ -442,7 +572,7 @@ private fun MetricCard(label: String, value: String, modifier: Modifier = Modifi
 private fun MonthlyCalendar(buckets: Map<LocalDate, CompletionBucket>) {
     Card(shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("5월 달성 캘린더", fontWeight = FontWeight.Bold)
+            SectionTitle("5월 달성 캘린더", ReverseIcon.Chart)
             (1..31).chunked(7).forEach { week ->
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                     week.forEach { day ->
@@ -470,7 +600,7 @@ private fun MonthlyCalendar(buckets: Map<LocalDate, CompletionBucket>) {
 private fun SevenDayCondition(records: List<DailyRecord>) {
     Card(shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("7일 컨디션", fontWeight = FontWeight.Bold)
+            SectionTitle("7일 컨디션", ReverseIcon.Energy)
             Row(
                 modifier = Modifier.fillMaxWidth().height(130.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -493,10 +623,10 @@ private fun SevenDayCondition(records: List<DailyRecord>) {
 private fun RoutineRanking(routines: List<Routine>) {
     Card(shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("루틴별 달성률", fontWeight = FontWeight.Bold)
+            SectionTitle("루틴별 달성률", ReverseIcon.Trophy)
             routines.take(5).forEachIndexed { index, routine ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Text("${index + 1}", fontWeight = FontWeight.Bold, color = ReverseGold)
+                    IconTile(routine.category.icon(), routine.category.label, size = 30.dp, background = ReverseGold.copy(alpha = 0.11f), tint = ReverseGold)
                     Spacer(Modifier.width(8.dp))
                     Text(routine.name, modifier = Modifier.weight(1f))
                     Text("${92 - index * 7}%")
@@ -510,29 +640,40 @@ private fun RoutineRanking(routines: List<Routine>) {
 private fun InsightCard(text: String) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)), shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("AI 인사이트", fontWeight = FontWeight.Bold, color = ReverseGreen)
+            SectionTitle("AI 인사이트", ReverseIcon.Sparkles, ReverseGreen)
             Text(text)
         }
     }
 }
 
 @Composable
+private fun SectionTitle(title: String, icon: ReverseIcon, tint: Color = ReverseGold) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        ReverseIconView(icon, null, Modifier.size(19.dp), tint = tint)
+        Text(title, fontWeight = FontWeight.Bold, color = if (tint == ReverseGold) MaterialTheme.colorScheme.onSurface else tint)
+    }
+}
+
+@Composable
 private fun HealthInfoScreen(modifier: Modifier) {
-    val cards = listOf("산화 스트레스", "비타민C", "운동 과학", "수면과 노화", "연구 백과")
+    val cards = healthTopics()
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("건강정보", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                IconTile(ReverseIcon.Book, "건강정보", size = 44.dp, background = ReverseGreen.copy(alpha = 0.14f), tint = ReverseGreen)
+                Text("건강정보", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            }
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 cards.chunked(2).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        row.forEach { label ->
-                            TopicCard(label, Modifier.weight(1f))
+                        row.forEach { topic ->
+                            TopicCard(topic, Modifier.weight(1f))
                         }
                         if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
@@ -541,8 +682,16 @@ private fun HealthInfoScreen(modifier: Modifier) {
         }
         item {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("스킨케어 성분", "안티에이징 식단", "마음건강").forEach {
-                    AssistChip(onClick = {}, label = { Text(it) })
+                listOf(
+                    IconLabel("스킨케어 성분", ReverseIcon.Drop, "스킨케어 성분"),
+                    IconLabel("안티에이징 식단", ReverseIcon.Plate, "안티에이징 식단"),
+                    IconLabel("마음건강", ReverseIcon.Mind, "마음건강"),
+                ).forEach {
+                    AssistChip(
+                        onClick = {},
+                        leadingIcon = { ReverseIconView(it.icon, null, Modifier.size(16.dp), tint = ReverseGold) },
+                        label = { Text(it.label) },
+                    )
                 }
             }
         }
@@ -554,18 +703,24 @@ private fun HealthInfoScreen(modifier: Modifier) {
             ),
         ) { article ->
             Card(shape = RoundedCornerShape(8.dp)) {
-                Column(Modifier.padding(14.dp)) {
-                    Text(article, fontWeight = FontWeight.SemiBold)
-                    Text("R의 건강로그 연구 노트", style = MaterialTheme.typography.labelMedium, color = ReverseGold)
+                Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(ReverseIcon.Book, "아티클", size = 38.dp, background = ReverseGold.copy(alpha = 0.12f), tint = ReverseGold)
+                    Column(Modifier.weight(1f)) {
+                        Text(article, fontWeight = FontWeight.SemiBold)
+                        Text("R의 건강로그 연구 노트", style = MaterialTheme.typography.labelMedium, color = ReverseGold)
+                    }
                 }
             }
         }
         item {
             Card(shape = RoundedCornerShape(8.dp)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("YouTube 최신 영상", fontWeight = FontWeight.Bold)
+                    SectionTitle("YouTube 최신 영상", ReverseIcon.Youtube)
                     Box(Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(8.dp)).background(ReverseEspresso), contentAlignment = Alignment.Center) {
-                        Text("R의 건강로그", color = Color.White, fontWeight = FontWeight.Bold)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ReverseIconView(ReverseIcon.Play, "재생", Modifier.size(42.dp), tint = Color.White)
+                            Text("R의 건강로그", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -574,10 +729,11 @@ private fun HealthInfoScreen(modifier: Modifier) {
 }
 
 @Composable
-private fun TopicCard(label: String, modifier: Modifier) {
+private fun TopicCard(topic: IconLabel, modifier: Modifier) {
     Card(modifier = modifier.heightIn(min = 92.dp), shape = RoundedCornerShape(8.dp)) {
-        Box(Modifier.fillMaxSize().padding(14.dp), contentAlignment = Alignment.CenterStart) {
-            Text(label, fontWeight = FontWeight.Bold)
+        Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            IconTile(topic.icon, topic.contentDescription, size = 38.dp, background = ReverseGreen.copy(alpha = 0.12f), tint = ReverseGreen)
+            Text(topic.label, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -594,10 +750,19 @@ private fun CareScreen(modifier: Modifier, inbody: InbodyRecord) {
     ) {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = ReverseGreen), shape = RoundedCornerShape(8.dp)) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("REVERSE 1:1 케어", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("카카오 오픈채팅으로 식단, 인바디, 영양제 기록을 보내세요.", color = Color.White)
-                    OutlinedButton(onClick = {}) { Text("카카오 오픈채팅 연결") }
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("REVERSE 1:1 케어", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            Text("카카오 오픈채팅으로 식단, 인바디, 영양제 기록을 보내세요.", color = Color.White)
+                        }
+                        IconTile(ReverseIcon.Care, "1:1 케어", size = 54.dp, background = Color.White.copy(alpha = 0.18f), tint = Color.White)
+                    }
+                    OutlinedButton(onClick = {}, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.7f))) {
+                        ReverseIconView(ReverseIcon.Link, null, Modifier.size(18.dp), tint = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Text("카카오 오픈채팅 연결", color = Color.White)
+                    }
                 }
             }
         }
@@ -630,12 +795,23 @@ private fun CareScreen(modifier: Modifier, inbody: InbodyRecord) {
 private fun CareChecklist() {
     Card(shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("오늘 케어 현황", fontWeight = FontWeight.Bold)
-            listOf("식단 전송 완료", "영양제 복용 확인", "인바디 측정 결과 대기중", "스킨케어 루틴 인증 완료").forEach {
+            SectionTitle("오늘 케어 현황", ReverseIcon.Check)
+            listOf(
+                IconLabel("식단 전송 완료", ReverseIcon.Plate, "식단 전송"),
+                IconLabel("영양제 복용 확인", ReverseIcon.Supplement, "영양제 복용"),
+                IconLabel("인바디 측정 결과 대기중", ReverseIcon.Body, "인바디 측정"),
+                IconLabel("스킨케어 루틴 인증 완료", ReverseIcon.Drop, "스킨케어 인증"),
+            ).forEach {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(10.dp).clip(CircleShape).background(if (it.contains("대기중")) ReverseGold else ReverseGreen))
+                    IconTile(
+                        it.icon,
+                        it.contentDescription,
+                        size = 30.dp,
+                        background = if (it.label.contains("대기중")) ReverseGold.copy(alpha = 0.16f) else ReverseGreen.copy(alpha = 0.15f),
+                        tint = if (it.label.contains("대기중")) ReverseGold else ReverseGreen,
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text(it)
+                    Text(it.label)
                 }
             }
         }
@@ -646,16 +822,16 @@ private fun CareChecklist() {
 private fun InbodyCard(inbody: InbodyRecord) {
     Card(shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("최근 인바디", fontWeight = FontWeight.Bold)
+            SectionTitle("최근 인바디", ReverseIcon.Body)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricCard("체중", "${inbody.weight}kg", Modifier.weight(1f))
-                MetricCard("체지방", "${inbody.bodyFatPct}%", Modifier.weight(1f))
-                MetricCard("골격근", "${inbody.muscleMass}kg", Modifier.weight(1f))
+                MetricCard("체중", "${inbody.weight}kg", Modifier.weight(1f), ReverseIcon.Body)
+                MetricCard("체지방", "${inbody.bodyFatPct}%", Modifier.weight(1f), ReverseIcon.Chart)
+                MetricCard("골격근", "${inbody.muscleMass}kg", Modifier.weight(1f), ReverseIcon.Dumbbell)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricCard("BMR", "${inbody.bmr ?: "-"}", Modifier.weight(1f))
-                MetricCard("체수분", "${inbody.bodyWater ?: "-"}L", Modifier.weight(1f))
-                MetricCard("내장지방", "${inbody.visceralFat ?: "-"}", Modifier.weight(1f))
+                MetricCard("BMR", "${inbody.bmr ?: "-"}", Modifier.weight(1f), ReverseIcon.Energy)
+                MetricCard("체수분", "${inbody.bodyWater ?: "-"}L", Modifier.weight(1f), ReverseIcon.Drop)
+                MetricCard("내장지방", "${inbody.visceralFat ?: "-"}", Modifier.weight(1f), ReverseIcon.Report)
             }
         }
     }
@@ -665,9 +841,17 @@ private fun InbodyCard(inbody: InbodyRecord) {
 private fun StepsCard() {
     Card(shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("이용 방법", fontWeight = FontWeight.Bold)
-            listOf("1. 카카오 오픈채팅 연결", "2. 인바디·식단·영양제 메시지 전송", "3. 자동 분석 결과 확인", "4. 다음 루틴 조정").forEach {
-                Text(it)
+            SectionTitle("이용 방법", ReverseIcon.Link)
+            listOf(
+                IconLabel("카카오 오픈채팅 연결", ReverseIcon.Link, "연결"),
+                IconLabel("인바디·식단·영양제 메시지 전송", ReverseIcon.Message, "메시지 전송"),
+                IconLabel("자동 분석 결과 확인", ReverseIcon.Sparkles, "AI 분석"),
+                IconLabel("다음 루틴 조정", ReverseIcon.Check, "루틴 조정"),
+            ).forEachIndexed { index, step ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    IconTile(step.icon, step.contentDescription, size = 30.dp, background = ReverseGold.copy(alpha = 0.12f), tint = ReverseGold)
+                    Text("${index + 1}. ${step.label}")
+                }
             }
         }
     }
@@ -682,17 +866,34 @@ private fun MenuScreen(modifier: Modifier, records: List<DailyRecord>) {
     ) {
         item {
             Card(shape = RoundedCornerShape(8.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("김민지", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("실천지수 포인트 ${records.sumOf { it.score }}P", color = ReverseGold, fontWeight = FontWeight.Bold)
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    IconTile(ReverseIcon.User, "회원", size = 48.dp, background = ReverseEspresso, tint = Color.White)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("김민지", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("실천지수 포인트 ${records.sumOf { it.score }}P", color = ReverseGold, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
-        items(listOf("루틴 차트", "인바디 기록", "사진 타임라인", "실천지수 내역", "REVERSE Shop", "유어프라임", "유튜브", "카페", "문의 및 설정")) { item ->
+        items(
+            listOf(
+                IconLabel("루틴 차트", ReverseIcon.Chart, "루틴 차트"),
+                IconLabel("인바디 기록", ReverseIcon.Body, "인바디 기록"),
+                IconLabel("사진 타임라인", ReverseIcon.Camera, "사진 타임라인"),
+                IconLabel("실천지수 내역", ReverseIcon.Trophy, "실천지수 내역"),
+                IconLabel("REVERSE Shop", ReverseIcon.Shop, "리버스 숍"),
+                IconLabel("유어프라임", ReverseIcon.Sparkles, "유어프라임"),
+                IconLabel("유튜브", ReverseIcon.Youtube, "유튜브"),
+                IconLabel("카페", ReverseIcon.Cafe, "카페"),
+                IconLabel("문의 및 설정", ReverseIcon.Message, "문의 및 설정"),
+            ),
+        ) { item ->
             Card(shape = RoundedCornerShape(8.dp)) {
-                Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(item)
-                    Text("›")
+                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(item.icon, item.contentDescription, size = 34.dp, background = ReverseGold.copy(alpha = 0.12f), tint = ReverseGold)
+                    Spacer(Modifier.width(12.dp))
+                    Text(item.label, modifier = Modifier.weight(1f))
+                    Text("›", color = ReverseGold, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -708,7 +909,17 @@ private fun AdminDashboard(modifier: Modifier, records: List<DailyRecord>) {
     Column(modifier.fillMaxSize()) {
         PrimaryTabRow(selectedTabIndex = selectedTab) {
             tabs.forEachIndexed { index, title ->
-                Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text(title) })
+                val icon = listOf(ReverseIcon.Chart, ReverseIcon.User, ReverseIcon.Sparkles)[index]
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            ReverseIconView(icon, null, Modifier.size(16.dp), tint = if (selectedTab == index) ReverseGold else MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(title)
+                        }
+                    },
+                )
             }
         }
         when (selectedTab) {
@@ -724,17 +935,20 @@ private fun AdminStatus(records: List<DailyRecord>, members: List<MemberDailySum
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricCard("제출 수", "${members.size}", Modifier.weight(1f))
-                MetricCard("평균 지수", "${members.map { it.score }.average().toInt()}", Modifier.weight(1f))
-                MetricCard("100점", "${members.count { it.score == 100 }}", Modifier.weight(1f))
+                MetricCard("제출 수", "${members.size}", Modifier.weight(1f), ReverseIcon.Check)
+                MetricCard("평균 지수", "${members.map { it.score }.average().toInt()}", Modifier.weight(1f), ReverseIcon.Chart)
+                MetricCard("100점", "${members.count { it.score == 100 }}", Modifier.weight(1f), ReverseIcon.Trophy)
             }
         }
         item {
             Card(shape = RoundedCornerShape(8.dp)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("오늘 제출 회원", fontWeight = FontWeight.Bold)
+                    SectionTitle("오늘 제출 회원", ReverseIcon.User)
                     members.forEach { member ->
-                        Text("${member.name} · 에너지 ${member.energy}/5 · ${member.score}점")
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconTile(ReverseIcon.User, member.name, size = 28.dp, background = ReverseGreen.copy(alpha = 0.12f), tint = ReverseGreen)
+                            Text("${member.name} · 에너지 ${member.energy}/5 · ${member.score}점")
+                        }
                     }
                 }
             }
@@ -748,10 +962,19 @@ private fun AdminMembers(members: List<MemberDailySummary>) {
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         items(members) { member ->
             Card(shape = RoundedCornerShape(8.dp)) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(member.name, fontWeight = FontWeight.Bold)
-                    Text("오늘 기록: 실천지수 ${member.score}점, 에너지 ${member.energy}/5")
-                    Text("메모: ${if (member.score <= 30) "저녁 루틴 리마인드 필요" else "특이사항 없음"}")
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    IconTile(
+                        ReverseIcon.User,
+                        member.name,
+                        size = 40.dp,
+                        background = if (member.score <= 30 || member.energy <= 3) ReverseCoral.copy(alpha = 0.14f) else ReverseGold.copy(alpha = 0.12f),
+                        tint = if (member.score <= 30 || member.energy <= 3) ReverseCoral else ReverseGold,
+                    )
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(member.name, fontWeight = FontWeight.Bold)
+                        Text("오늘 기록: 실천지수 ${member.score}점, 에너지 ${member.energy}/5")
+                        Text("메모: ${if (member.score <= 30) "저녁 루틴 리마인드 필요" else "특이사항 없음"}")
+                    }
                 }
             }
         }
@@ -768,17 +991,25 @@ private fun AdminAnalysis(members: List<MemberDailySummary>) {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = ReverseCoral.copy(alpha = 0.12f)), shape = RoundedCornerShape(8.dp)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("주목할 회원", fontWeight = FontWeight.Bold, color = ReverseCoral)
-                    attention.forEach { Text("${it.name} · ${it.score}점 · 에너지 ${it.energy}/5") }
+                    SectionTitle("주목할 회원", ReverseIcon.Alert, ReverseCoral)
+                    attention.forEach {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ReverseIconView(ReverseIcon.Alert, null, Modifier.size(17.dp), tint = ReverseCoral)
+                            Text("${it.name} · ${it.score}점 · 에너지 ${it.energy}/5")
+                        }
+                    }
                 }
             }
         }
         item {
             Card(shape = RoundedCornerShape(8.dp)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("카카오 수신 로그", fontWeight = FontWeight.Bold)
+                    SectionTitle("카카오 수신 로그", ReverseIcon.Message)
                     SampleData.kakaoMessages().forEach {
-                        Text("${it.parsedType} · ${it.parsedDataSummary}")
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ReverseIconView(ReverseIcon.Message, null, Modifier.size(17.dp), tint = ReverseGold)
+                            Text("${it.parsedType} · ${it.parsedDataSummary}")
+                        }
                     }
                 }
             }
