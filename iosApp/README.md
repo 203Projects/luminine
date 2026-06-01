@@ -1,12 +1,24 @@
 # iOS app shell
 
-The shared Compose UI is exported from `:composeApp` as the `ReverseHealthTracker` framework.
+The shared Compose UI is exported from `:composeApp` as the `Luminine` framework.
 
-Create or open an Xcode iOS app target named `iosApp`, add the Swift files in `iosApp/iosApp`, and add a pre-build script that runs:
+The included `iosApp.xcodeproj` links the static KMP framework and runs this pre-build script:
 
 ```sh
 cd "$SRCROOT/.."
-./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
+./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
 ```
 
 The Swift entry point calls `MainViewController()` from the generated Kotlin framework.
+
+To run on a simulator:
+
+```sh
+xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme iosApp \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -derivedDataPath iosApp/build \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```

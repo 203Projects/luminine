@@ -14,6 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ReverseHealthTracker"
+rootProject.name = "Luminine"
 include(":androidApp")
 include(":composeApp")
