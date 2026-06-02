@@ -32,4 +32,12 @@ class UiContentTest {
         assertEquals(actions.size, actions.map { it.icon }.toSet().size)
         assertTrue(actions.all { it.label.length <= 8 })
     }
+
+    @Test
+    fun topLevelDestinationsEndWithShopAndDropMenu() {
+        val labels = topLevelDestinations().map { it.label }
+        assertEquals(listOf("홈", "차트", "건강정보", "1:1케어", "Shop"), labels)
+        assertTrue("Shop" in labels)
+        assertTrue("메뉴" !in labels)
+    }
 }
