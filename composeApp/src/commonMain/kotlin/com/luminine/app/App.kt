@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -192,7 +193,7 @@ fun App() {
 
 @Composable
 private fun SplashGate() {
-    Box(Modifier.fillMaxSize().background(ReverseIvory), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(ReverseIvory).safeDrawingPadding(), contentAlignment = Alignment.Center) {
         Text("LUMÍNINE", color = ReverseEspresso, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineMedium)
     }
 }
