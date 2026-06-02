@@ -10,7 +10,7 @@ plugins {
 
 kotlin {
     android {
-        namespace = "com.reverse.healthtracker.shared"
+        namespace = "com.luminine.app.shared"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
         androidResources {
@@ -30,9 +30,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "ReverseHealthTracker"
+            baseName = "Luminine"
             isStatic = true
-            binaryOption("bundleId", "com.reverse.healthtracker.shared")
+            binaryOption("bundleId", "com.luminine.app.shared")
         }
     }
 

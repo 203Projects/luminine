@@ -7,7 +7,7 @@ on:
 
 jobs:
   android:
-    runs-on: macos-15
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -15,9 +15,12 @@ jobs:
           distribution: zulu
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v6
-      - name: Test shared code
-        run: ./gradlew :composeApp:allTests
+      - name: Test shared code (Android host)
+        run: ./gradlew :composeApp:testAndroidHostTest
       - name: Build Android debug
         run: ./gradlew :androidApp:assembleDebug
-      - name: Build iOS simulator framework
-        run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
+
+  # iOS targets are intentionally not built in CI: Compose Multiplatform 1.11.0
+  # references the iOS 26 UIKit symbol UIViewLayoutRegion, which the available
+  # GitHub-hosted macOS runners' Xcode SDK does not yet provide (link fails).
+  # Re-add an iOS job on a macos-26 runner when iOS work resumes.

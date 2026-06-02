@@ -15,3 +15,5 @@ iosApp/Pods/
 iosApp/*.xcworkspace/
 xcuserdata/
 *.xcuserstate
+.DS_Store
+**/.DS_Store

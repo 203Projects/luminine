@@ -1,5 +1,5 @@
 import SwiftUI
-import ReverseHealthTracker
+import Luminine
 
 struct ComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
