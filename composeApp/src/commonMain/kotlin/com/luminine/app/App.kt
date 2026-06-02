@@ -43,6 +43,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -80,6 +81,7 @@ import com.luminine.app.domain.seededRoutines
 import com.luminine.app.model.Condition
 import com.luminine.app.model.DailyRecord
 import com.luminine.app.model.InbodyRecord
+import com.luminine.app.model.LuminineSettings
 import com.luminine.app.model.MemberDailySummary
 import com.luminine.app.model.PriorityGoal
 import com.luminine.app.model.Routine
@@ -125,7 +127,9 @@ private sealed interface RootState {
 
 @Composable
 fun App() {
-    LuminineTheme {
+    val settingsRepo = remember { LuminineDependencies.settingsRepository }
+    val settings by settingsRepo.observe().collectAsState(initial = LuminineSettings())
+    LuminineTheme(settings) {
         val scope = rememberCoroutineScope()
         val sessionRepo = remember { LuminineDependencies.sessionRepository }
         val surveyRepo = remember { LuminineDependencies.surveyRepository }
