@@ -46,8 +46,14 @@ actual fun PlatformWebView(
             }
         },
         update = { view ->
-            // Re-apply on toggle: inject reader CSS when on; reload to drop it when turned off.
-            if (readingMode) view.evaluateJavascript(readerInjectionJs(fontScale), null) else view.reload()
+            // Only act on an actual reading-mode TRANSITION — `update` fires on every recomposition
+            // (e.g. when nav-state changes), so reacting to the level alone would re-inject or reload
+            // the page on ordinary browsing. Re-injection after in-mode navigations is handled in
+            // onPageFinished.
+            if (readingMode != state.lastReadingMode) {
+                if (readingMode) view.evaluateJavascript(readerInjectionJs(fontScale), null) else view.reload()
+                state.lastReadingMode = readingMode
+            }
         },
     )
 }
@@ -55,6 +61,7 @@ actual fun PlatformWebView(
 private class AndroidWebViewState {
     var readingMode: Boolean = false
     var fontScale: FontScale = FontScale.Normal
+    var lastReadingMode: Boolean = false
 }
 
 actual fun openInExternalBrowser(url: String) {

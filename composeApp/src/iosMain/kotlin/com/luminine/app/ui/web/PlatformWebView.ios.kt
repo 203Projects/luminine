@@ -1,6 +1,7 @@
 package com.luminine.app.ui.web
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
 import com.luminine.app.model.FontScale
@@ -19,6 +20,7 @@ actual fun PlatformWebView(
     controller: WebViewController,
     modifier: Modifier,
 ) {
+    val state = remember { IosWebViewState() }
     UIKitView(
         modifier = modifier,
         factory = {
@@ -33,14 +35,22 @@ actual fun PlatformWebView(
         },
         update = { web ->
             controller.onNavStateChanged(web.canGoBack, web.canGoForward)
-            // Inject reader CSS at the current font scale when on; reload to drop it when turned off.
-            if (readingMode) {
-                web.evaluateJavaScript(readerInjectionJs(fontScale), null)
-            } else {
-                web.reload()
+            // Only act on an actual reading-mode TRANSITION — `update` fires on every recomposition,
+            // so reacting to the level alone would re-inject or reload on ordinary browsing.
+            if (readingMode != state.lastReadingMode) {
+                if (readingMode) {
+                    web.evaluateJavaScript(readerInjectionJs(fontScale), null)
+                } else {
+                    web.reload()
+                }
+                state.lastReadingMode = readingMode
             }
         },
     )
+}
+
+private class IosWebViewState {
+    var lastReadingMode: Boolean = false
 }
 
 actual fun openInExternalBrowser(url: String) {
