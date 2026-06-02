@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,10 +42,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
@@ -59,21 +62,32 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.luminine.app.auth.AuthResult
 import com.luminine.app.data.SampleData
+import com.luminine.app.data.session.Session
+import com.luminine.app.di.LuminineDependencies
 import com.luminine.app.domain.CompletionBucket
 import com.luminine.app.domain.KakaoMessageParser
 import com.luminine.app.domain.MealType
 import com.luminine.app.domain.averageEnergy
 import com.luminine.app.domain.averageScore
 import com.luminine.app.domain.calculatePracticeScore
+import com.luminine.app.domain.greetingFor
+import com.luminine.app.domain.avatarInitial
 import com.luminine.app.domain.membersRequiringAttention
 import com.luminine.app.domain.monthlyCompletionBuckets
+import com.luminine.app.domain.seededRoutines
 import com.luminine.app.model.Condition
 import com.luminine.app.model.DailyRecord
 import com.luminine.app.model.InbodyRecord
 import com.luminine.app.model.MemberDailySummary
+import com.luminine.app.model.PriorityGoal
 import com.luminine.app.model.Routine
 import com.luminine.app.model.RoutineCategory
+import com.luminine.app.model.SurveyResponse
+import com.luminine.app.model.SurveySection
+import com.luminine.app.onboarding.AuthScreen
+import com.luminine.app.onboarding.SurveyFlow
 import com.luminine.app.ui.IconLabel
 import com.luminine.app.ui.LuminineIcon
 import com.luminine.app.ui.components.IconTile
@@ -85,7 +99,9 @@ import com.luminine.app.ui.theme.ReverseCoral
 import com.luminine.app.ui.theme.ReverseEspresso
 import com.luminine.app.ui.theme.ReverseGold
 import com.luminine.app.ui.theme.ReverseGreen
+import com.luminine.app.ui.theme.ReverseIvory
 import com.luminine.app.ui.theme.LuminineTheme
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 
 // Mockup-matched shape: soft 20dp rounded cards across all surfaces.
@@ -99,12 +115,98 @@ private enum class MainTab(val label: String) {
     Menu("메뉴"),
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// Top-level app gate. The main tab UI is only reachable after auth + completed onboarding.
+private sealed interface RootState {
+    data object Checking : RootState
+    data object Auth : RootState
+    data class Survey(val resume: SurveyResponse?) : RootState
+    data class Main(val session: Session, val survey: SurveyResponse?) : RootState
+}
+
 @Composable
 fun App() {
     LuminineTheme {
-        val userId = "user-1"
-        val routines = remember { SampleData.defaultRoutines(userId).toMutableStateList() }
+        val scope = rememberCoroutineScope()
+        val sessionRepo = remember { LuminineDependencies.sessionRepository }
+        val surveyRepo = remember { LuminineDependencies.surveyRepository }
+        val authClient = remember { LuminineDependencies.kakaoAuthClient }
+        var root by remember { mutableStateOf<RootState>(RootState.Checking) }
+
+        // Restore any persisted session/survey on launch (repos are suspend → LaunchedEffect).
+        LaunchedEffect(Unit) {
+            val session = sessionRepo.load()
+            val survey = surveyRepo.load()
+            root = when {
+                session == null -> RootState.Auth
+                session.onboardingComplete -> RootState.Main(session, survey)
+                else -> RootState.Survey(survey) // logged in but onboarding unfinished
+            }
+        }
+
+        when (val state = root) {
+            RootState.Checking -> SplashGate()
+            RootState.Auth -> AuthScreen(onKakaoLogin = {
+                scope.launch {
+                    when (val result = authClient.login()) {
+                        is AuthResult.Success -> {
+                            val account = result.account
+                            val session = Session(
+                                userId = "user-${account.kakaoId}",
+                                kakaoId = account.kakaoId,
+                                displayName = account.nickname,
+                                onboardingComplete = false,
+                            )
+                            sessionRepo.save(session)
+                            root = RootState.Survey(null)
+                        }
+                        AuthResult.Cancelled, is AuthResult.Error -> Unit // stay on AuthScreen
+                    }
+                }
+            })
+            is RootState.Survey -> SurveyFlow(onComplete = { response ->
+                scope.launch {
+                    surveyRepo.save(response)
+                    val existing = sessionRepo.load()
+                    val name = response.basicInfo.name.ifBlank { existing?.displayName ?: "" }
+                    val updated = (existing ?: Session("user-1", "", name)).copy(
+                        displayName = name,
+                        onboardingComplete = true,
+                    )
+                    sessionRepo.save(updated)
+                    root = RootState.Main(updated, response)
+                }
+            })
+            is RootState.Main -> MainScaffold(
+                session = state.session,
+                survey = state.survey,
+                onLogout = {
+                    scope.launch {
+                        sessionRepo.clear()
+                        surveyRepo.clear()
+                        root = RootState.Auth
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SplashGate() {
+    Box(Modifier.fillMaxSize().background(ReverseIvory).safeDrawingPadding(), contentAlignment = Alignment.Center) {
+        Text("LUMÍNINE", color = ReverseEspresso, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineMedium)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MainScaffold(session: Session, survey: SurveyResponse?, onLogout: () -> Unit) {
+    val userId = session.userId
+    val goals = remember(survey) { survey?.goals?.orderedGoals ?: emptyList() }
+    val routines = remember(survey) {
+        (survey?.let { seededRoutines(it, SampleData.defaultRoutines(userId)) }
+            ?: SampleData.defaultRoutines(userId)).toMutableStateList()
+    }
         val records = remember { SampleData.records(userId).toMutableStateList() }
         var doneIds by remember { mutableStateOf(setOf<String>()) }
         var condition by remember { mutableStateOf(Condition(3, 3, 3, "😊")) }
@@ -122,7 +224,7 @@ fun App() {
                             }
                         } else {
                             Column {
-                                Text("안녕하세요, 민지님", fontWeight = FontWeight.Bold)
+                                Text(greetingFor(session.displayName), fontWeight = FontWeight.Bold)
                                 Text("5월 20일 · 오늘도 빛나는 하루", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
@@ -139,7 +241,7 @@ fun App() {
                             Text(if (isAdmin) "회원" else "관리자")
                         }
                         Spacer(Modifier.width(4.dp))
-                        Avatar("민", 38.dp)
+                        Avatar(avatarInitial(session.displayName), 38.dp)
                         Spacer(Modifier.width(12.dp))
                     },
                 )
@@ -174,6 +276,7 @@ fun App() {
                     MainTab.Home -> HomeScreen(
                         modifier = Modifier.padding(padding),
                         routines = routines,
+                        goals = goals,
                         doneIds = doneIds,
                         condition = condition,
                         onDoneChange = { routineId, checked ->
@@ -206,17 +309,17 @@ fun App() {
                     MainTab.Charts -> ChartsScreen(Modifier.padding(padding), records, routines)
                     MainTab.Health -> HealthInfoScreen(Modifier.padding(padding))
                     MainTab.Care -> CareScreen(Modifier.padding(padding), SampleData.latestInbody(userId))
-                    MainTab.Menu -> MenuScreen(Modifier.padding(padding), records)
+                    MainTab.Menu -> MenuScreen(Modifier.padding(padding), records, session.displayName, survey, onLogout)
                 }
             }
         }
     }
-}
 
 @Composable
 private fun HomeScreen(
     modifier: Modifier,
     routines: List<Routine>,
+    goals: List<PriorityGoal>,
     doneIds: Set<String>,
     condition: Condition,
     onDoneChange: (String, Boolean) -> Unit,
@@ -243,6 +346,9 @@ private fun HomeScreen(
     ) {
         item {
             HeroScoreCard(score = score, done = doneCount, total = activeRoutines.size, streak = 12)
+        }
+        if (goals.isNotEmpty()) {
+            item { GoalChipsRow(goals) }
         }
         item {
             CategoryChips(selectedCategory) { selectedCategory = it }
@@ -285,6 +391,27 @@ private fun HomeScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text("오늘 기록 저장")
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoalChipsRow(goals: List<PriorityGoal>) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        SectionTitle("나의 관심 영역", LuminineIcon.Sparkles, ReverseGreen)
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            goals.forEachIndexed { index, goal ->
+                AssistChip(
+                    onClick = {},
+                    leadingIcon = {
+                        Text("${index + 1}", color = ReverseGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                    },
+                    label = { Text(goal.label) },
+                )
             }
         }
     }
@@ -552,7 +679,8 @@ private fun ChartsScreen(modifier: Modifier, records: List<DailyRecord>, routine
         }
         item { MonthlyCalendar(buckets) }
         item { SevenDayCondition(records.takeLast(7)) }
-        item { RoutineRanking(routines) }
+        // Only rank active routines — seeding may deactivate de-prioritized categories.
+        item { RoutineRanking(routines.filter { it.isActive }) }
         item {
             InsightCard("최근 수면 점수가 낮은 날에는 실천지수가 함께 떨어졌습니다. 저녁 루틴을 먼저 완료하고 수면 준비 알림을 30분 앞당기는 전략이 좋습니다.")
         }
@@ -860,7 +988,13 @@ private fun StepsCard() {
 }
 
 @Composable
-private fun MenuScreen(modifier: Modifier, records: List<DailyRecord>) {
+private fun MenuScreen(
+    modifier: Modifier,
+    records: List<DailyRecord>,
+    displayName: String,
+    survey: SurveyResponse?,
+    onLogout: () -> Unit,
+) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -871,12 +1005,13 @@ private fun MenuScreen(modifier: Modifier, records: List<DailyRecord>) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     IconTile(LuminineIcon.User, "회원", size = 48.dp, background = ReverseEspresso, tint = Color.White)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("김민지", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(displayName.ifBlank { "회원" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text("실천지수 포인트 ${records.sumOf { it.score }}P", color = ReverseGold, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
+        item { SurveySummaryCard(survey) }
         items(
             listOf(
                 IconLabel("루틴 차트", LuminineIcon.Chart, "루틴 차트"),
@@ -887,7 +1022,6 @@ private fun MenuScreen(modifier: Modifier, records: List<DailyRecord>) {
                 IconLabel("유어프라임", LuminineIcon.Sparkles, "유어프라임"),
                 IconLabel("유튜브", LuminineIcon.Youtube, "유튜브"),
                 IconLabel("카페", LuminineIcon.Cafe, "카페"),
-                IconLabel("문의 및 설정", LuminineIcon.Message, "문의 및 설정"),
             ),
         ) { item ->
             Card(shape = CardShape) {
@@ -899,7 +1033,64 @@ private fun MenuScreen(modifier: Modifier, records: List<DailyRecord>) {
                 }
             }
         }
+        item {
+            Card(shape = CardShape) {
+                Row(
+                    Modifier.fillMaxWidth().clickable(onClick = onLogout).padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconTile(LuminineIcon.Link, "로그아웃", size = 34.dp, background = ReverseCoral.copy(alpha = 0.12f), tint = ReverseCoral)
+                    Spacer(Modifier.width(12.dp))
+                    Text("로그아웃", modifier = Modifier.weight(1f), color = ReverseCoral)
+                    Text("›", color = ReverseCoral, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
     }
+}
+
+@Composable
+private fun SurveySummaryCard(survey: SurveyResponse?) {
+    Card(shape = CardShape) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SectionTitle("내 건강 설문", LuminineIcon.Report)
+            if (survey == null) {
+                Text("아직 설문 정보가 없습니다.")
+            } else {
+                survey.basicInfo.birthYear?.let { Text("출생연도 · $it") }
+                survey.basicInfo.gender?.let { Text("성별 · ${it.label}") }
+                survey.basicInfo.region?.let { Text("지역 · ${it.label}") }
+                survey.bodyInfo.heightCm?.let { h ->
+                    survey.bodyInfo.weightKg?.let { w -> Text("신체 · ${h.toInt()}cm / ${w.toInt()}kg") }
+                }
+                if (survey.goals.orderedGoals.isNotEmpty()) {
+                    Text(
+                        "관심 영역 · " + survey.goals.orderedGoals.take(3)
+                            .mapIndexed { i, g -> "${i + 1}.${g.label}" }.joinToString("  "),
+                    )
+                }
+                if (survey.skippedSections.isNotEmpty()) {
+                    Card(colors = CardDefaults.cardColors(containerColor = ReverseGold.copy(alpha = 0.12f)), shape = CardShape) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("나중에 입력하기로 한 항목 ${survey.skippedSections.size}개", color = ReverseGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                            Text(survey.skippedSections.map { it.summaryLabel() }.joinToString(", "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun SurveySection.summaryLabel(): String = when (this) {
+    SurveySection.S0 -> "기본 인적사항"
+    SurveySection.S1 -> "신체 정보"
+    SurveySection.S2 -> "질환·병력"
+    SurveySection.S3 -> "체감 증상"
+    SurveySection.S4 -> "생활습관"
+    SurveySection.S5 -> "복용 중"
+    SurveySection.S6 -> "관심 영역"
+    SurveySection.S7 -> "예산"
 }
 
 @Composable

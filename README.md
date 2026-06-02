@@ -18,6 +18,9 @@ The project uses the AGP 9 split structure:
 
 ## Implemented MVP Surface
 
+- Onboarding: Kakao login (stubbed behind a `KakaoAuthClient` interface, `#FEE500` CTA) → a 7-section health survey (S0/S1/S6 required, S2–S5/S7 skippable with "나중에 입력") → the main app. Progress bar, sensitive-info notice before health questions, and a completion reward screen.
+- Onboarding data drives the app: the Home greeting/avatar use the real name, an ordered S6 goal-chip row appears on Home, and default routines are pre-activated from the chosen goals + exercise level. The survey is summarized in 메뉴, with skipped sections surfaced for later entry.
+- Session + survey persist on-device via Kotlin Multiplatform DataStore (behind `SessionRepository`/`SurveyRepository` interfaces; in-memory fallback keeps the build green). Auth/persistence are swappable seams for real Kakao/Supabase later.
 - Home routine tracker with category filters, custom routine add/delete, completion score, condition sliders, emoji state, and save action.
 - Charts tab with monthly completion buckets, 7-day condition bars, routine ranking, and AI insight card.
 - Health information tab with anti-aging category cards, article list, and YouTube placeholder.
