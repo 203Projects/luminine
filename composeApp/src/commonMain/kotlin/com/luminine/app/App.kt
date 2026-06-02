@@ -30,6 +30,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -74,7 +75,6 @@ import com.luminine.app.domain.averageEnergy
 import com.luminine.app.domain.averageScore
 import com.luminine.app.domain.calculatePracticeScore
 import com.luminine.app.domain.greetingFor
-import com.luminine.app.domain.avatarInitial
 import com.luminine.app.domain.membersRequiringAttention
 import com.luminine.app.domain.monthlyCompletionBuckets
 import com.luminine.app.domain.seededRoutines
@@ -97,6 +97,13 @@ import com.luminine.app.ui.components.LuminineIconView
 import com.luminine.app.ui.healthTopics
 import com.luminine.app.ui.icon
 import com.luminine.app.ui.topLevelDestinations
+import com.luminine.app.ui.screens.MenuOverlay
+import com.luminine.app.ui.screens.MyPageScreen
+import com.luminine.app.ui.screens.ReadabilitySettingsScreen
+import com.luminine.app.ui.screens.ShopScreen
+import com.luminine.app.ui.screens.WebViewScreen
+import com.luminine.app.content.HealthContent
+import com.luminine.app.content.HealthTopicKey
 import com.luminine.app.ui.theme.ReverseCoral
 import com.luminine.app.ui.theme.ReverseEspresso
 import com.luminine.app.ui.theme.ReverseGold
@@ -114,7 +121,17 @@ private enum class MainTab(val label: String) {
     Charts("차트"),
     Health("건강정보"),
     Care("1:1케어"),
-    Menu("메뉴"),
+    Shop("Shop"),
+}
+
+// Screens reachable from the top app bar (전체 메뉴 / 마이페이지) or a content tap, drawn over the
+// current tab. Hand-rolled overlay routing — consistent with the existing when-based navigation.
+private sealed interface Overlay {
+    data object None : Overlay
+    data object Menu : Overlay
+    data object MyPage : Overlay
+    data object Readability : Overlay
+    data class Web(val url: String, val title: String) : Overlay
 }
 
 // Top-level app gate. The main tab UI is only reachable after auth + completed onboarding.
@@ -216,6 +233,8 @@ private fun MainScaffold(session: Session, survey: SurveyResponse?, onLogout: ()
         var condition by remember { mutableStateOf(Condition(3, 3, 3, "😊")) }
         var selectedTab by remember { mutableStateOf(MainTab.Home) }
         var isAdmin by remember { mutableStateOf(false) }
+        var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
+        val settingsRepo = remember { LuminineDependencies.settingsRepository }
 
         Scaffold(
             topBar = {
@@ -238,15 +257,29 @@ private fun MainScaffold(session: Session, survey: SurveyResponse?, onLogout: ()
                             LuminineIconView(
                                 icon = if (isAdmin) LuminineIcon.User else LuminineIcon.Admin,
                                 contentDescription = null,
-                                tint = ReverseGold,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp),
                             )
                             Spacer(Modifier.width(4.dp))
                             Text(if (isAdmin) "회원" else "관리자")
                         }
-                        Spacer(Modifier.width(4.dp))
-                        Avatar(avatarInitial(session.displayName), 38.dp)
-                        Spacer(Modifier.width(12.dp))
+                        IconButton(onClick = { overlay = Overlay.Menu }) {
+                            LuminineIconView(
+                                icon = LuminineIcon.Menu,
+                                contentDescription = "전체 메뉴",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                        IconButton(onClick = { overlay = Overlay.MyPage }) {
+                            LuminineIconView(
+                                icon = LuminineIcon.User,
+                                contentDescription = "마이페이지",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
                     },
                 )
             },
@@ -263,7 +296,7 @@ private fun MainScaffold(session: Session, survey: SurveyResponse?, onLogout: ()
                                     LuminineIconView(
                                         icon = destination.icon,
                                         contentDescription = destination.contentDescription,
-                                        tint = if (selectedTab == tab) ReverseEspresso else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (selectedTab == tab) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 },
                                 label = { Text(tab.label) },
@@ -311,11 +344,39 @@ private fun MainScaffold(session: Session, survey: SurveyResponse?, onLogout: ()
                         },
                     )
                     MainTab.Charts -> ChartsScreen(Modifier.padding(padding), records, routines)
-                    MainTab.Health -> HealthInfoScreen(Modifier.padding(padding))
+                    MainTab.Health -> HealthInfoScreen(Modifier.padding(padding)) { key ->
+                        overlay = Overlay.Web(HealthContent.urlFor(key), HealthContent.titleFor(key))
+                    }
                     MainTab.Care -> CareScreen(Modifier.padding(padding), SampleData.latestInbody(userId))
-                    MainTab.Menu -> MenuScreen(Modifier.padding(padding), records, session.displayName, survey, onLogout)
+                    MainTab.Shop -> ShopScreen(Modifier.padding(padding))
                 }
             }
+        }
+
+        when (val ov = overlay) {
+            Overlay.None -> Unit
+            Overlay.Menu -> MenuOverlay(
+                displayName = session.displayName,
+                records = records,
+                survey = survey,
+                onOpenReadability = { overlay = Overlay.Readability },
+                onLogout = onLogout,
+                onClose = { overlay = Overlay.None },
+            )
+            Overlay.MyPage -> MyPageScreen(
+                displayName = session.displayName,
+                onOpenReadability = { overlay = Overlay.Readability },
+                onClose = { overlay = Overlay.None },
+            )
+            Overlay.Readability -> ReadabilitySettingsScreen(
+                settingsRepo = settingsRepo,
+                onClose = { overlay = Overlay.None },
+            )
+            is Overlay.Web -> WebViewScreen(
+                url = ov.url,
+                title = ov.title,
+                onClose = { overlay = Overlay.None },
+            )
         }
     }
 
@@ -789,8 +850,11 @@ private fun SectionTitle(title: String, icon: LuminineIcon, tint: Color = Revers
 }
 
 @Composable
-private fun HealthInfoScreen(modifier: Modifier) {
+private fun HealthInfoScreen(modifier: Modifier, onOpenTopic: (HealthTopicKey) -> Unit) {
     val cards = healthTopics()
+    // healthTopics() order is fixed and 1:1 with HealthTopicKey.entries (산화 스트레스, 비타민C,
+    // 운동 과학, 수면과 노화, 연구 백과); map by index so each card opens the matching content URL.
+    val topicKeys = HealthTopicKey.entries
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -804,10 +868,16 @@ private fun HealthInfoScreen(modifier: Modifier) {
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                cards.chunked(2).forEach { row ->
+                cards.chunked(2).forEachIndexed { rowIndex, row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        row.forEach { topic ->
-                            TopicCard(topic, Modifier.weight(1f))
+                        row.forEachIndexed { colIndex, topic ->
+                            val flatIndex = rowIndex * 2 + colIndex
+                            val key = topicKeys.getOrNull(flatIndex)
+                            TopicCard(
+                                topic,
+                                Modifier.weight(1f),
+                                onClick = if (key != null) ({ onOpenTopic(key) }) else null,
+                            )
                         }
                         if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
@@ -863,8 +933,11 @@ private fun HealthInfoScreen(modifier: Modifier) {
 }
 
 @Composable
-private fun TopicCard(topic: IconLabel, modifier: Modifier) {
-    Card(modifier = modifier.heightIn(min = 92.dp), shape = CardShape) {
+private fun TopicCard(topic: IconLabel, modifier: Modifier, onClick: (() -> Unit)? = null) {
+    val cardModifier = modifier
+        .heightIn(min = 92.dp)
+        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+    Card(modifier = cardModifier, shape = CardShape) {
         Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             IconTile(topic.icon, topic.contentDescription, size = 38.dp, background = ReverseGreen.copy(alpha = 0.12f), tint = ReverseGreen)
             Text(topic.label, fontWeight = FontWeight.Bold)
@@ -989,112 +1062,6 @@ private fun StepsCard() {
             }
         }
     }
-}
-
-@Composable
-private fun MenuScreen(
-    modifier: Modifier,
-    records: List<DailyRecord>,
-    displayName: String,
-    survey: SurveyResponse?,
-    onLogout: () -> Unit,
-) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            Card(shape = CardShape) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    IconTile(LuminineIcon.User, "회원", size = 48.dp, background = ReverseEspresso, tint = Color.White)
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(displayName.ifBlank { "회원" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("실천지수 포인트 ${records.sumOf { it.score }}P", color = ReverseGold, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-        item { SurveySummaryCard(survey) }
-        items(
-            listOf(
-                IconLabel("루틴 차트", LuminineIcon.Chart, "루틴 차트"),
-                IconLabel("인바디 기록", LuminineIcon.Body, "인바디 기록"),
-                IconLabel("사진 타임라인", LuminineIcon.Camera, "사진 타임라인"),
-                IconLabel("실천지수 내역", LuminineIcon.Trophy, "실천지수 내역"),
-                IconLabel("LUMÍNINE Shop", LuminineIcon.Shop, "루미닌 숍"),
-                IconLabel("유어프라임", LuminineIcon.Sparkles, "유어프라임"),
-                IconLabel("유튜브", LuminineIcon.Youtube, "유튜브"),
-                IconLabel("카페", LuminineIcon.Cafe, "카페"),
-            ),
-        ) { item ->
-            Card(shape = CardShape) {
-                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconTile(item.icon, item.contentDescription, size = 34.dp, background = ReverseGold.copy(alpha = 0.12f), tint = ReverseGold)
-                    Spacer(Modifier.width(12.dp))
-                    Text(item.label, modifier = Modifier.weight(1f))
-                    Text("›", color = ReverseGold, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        item {
-            Card(shape = CardShape) {
-                Row(
-                    Modifier.fillMaxWidth().clickable(onClick = onLogout).padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconTile(LuminineIcon.Link, "로그아웃", size = 34.dp, background = ReverseCoral.copy(alpha = 0.12f), tint = ReverseCoral)
-                    Spacer(Modifier.width(12.dp))
-                    Text("로그아웃", modifier = Modifier.weight(1f), color = ReverseCoral)
-                    Text("›", color = ReverseCoral, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SurveySummaryCard(survey: SurveyResponse?) {
-    Card(shape = CardShape) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SectionTitle("내 건강 설문", LuminineIcon.Report)
-            if (survey == null) {
-                Text("아직 설문 정보가 없습니다.")
-            } else {
-                survey.basicInfo.birthYear?.let { Text("출생연도 · $it") }
-                survey.basicInfo.gender?.let { Text("성별 · ${it.label}") }
-                survey.basicInfo.region?.let { Text("지역 · ${it.label}") }
-                survey.bodyInfo.heightCm?.let { h ->
-                    survey.bodyInfo.weightKg?.let { w -> Text("신체 · ${h.toInt()}cm / ${w.toInt()}kg") }
-                }
-                if (survey.goals.orderedGoals.isNotEmpty()) {
-                    Text(
-                        "관심 영역 · " + survey.goals.orderedGoals.take(3)
-                            .mapIndexed { i, g -> "${i + 1}.${g.label}" }.joinToString("  "),
-                    )
-                }
-                if (survey.skippedSections.isNotEmpty()) {
-                    Card(colors = CardDefaults.cardColors(containerColor = ReverseGold.copy(alpha = 0.12f)), shape = CardShape) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("나중에 입력하기로 한 항목 ${survey.skippedSections.size}개", color = ReverseGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                            Text(survey.skippedSections.map { it.summaryLabel() }.joinToString(", "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun SurveySection.summaryLabel(): String = when (this) {
-    SurveySection.S0 -> "기본 인적사항"
-    SurveySection.S1 -> "신체 정보"
-    SurveySection.S2 -> "질환·병력"
-    SurveySection.S3 -> "체감 증상"
-    SurveySection.S4 -> "생활습관"
-    SurveySection.S5 -> "복용 중"
-    SurveySection.S6 -> "관심 영역"
-    SurveySection.S7 -> "예산"
 }
 
 @Composable
