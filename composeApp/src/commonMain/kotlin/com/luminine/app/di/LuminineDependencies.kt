@@ -4,7 +4,10 @@ import com.luminine.app.auth.KakaoAuthClient
 import com.luminine.app.auth.StubKakaoAuthClient
 import com.luminine.app.data.session.InMemorySessionRepository
 import com.luminine.app.data.session.SessionRepository
+import com.luminine.app.data.settings.InMemorySettingsRepository
+import com.luminine.app.data.settings.SettingsRepository
 import com.luminine.app.data.store.DataStoreSessionRepository
+import com.luminine.app.data.store.DataStoreSettingsRepository
 import com.luminine.app.data.store.DataStoreSurveyRepository
 import com.luminine.app.data.store.createLuminineDataStore
 import com.luminine.app.data.survey.InMemorySurveyRepository
@@ -31,6 +34,8 @@ object LuminineDependencies {
         private set
     var surveyRepository: SurveyRepository = InMemorySurveyRepository()
         private set
+    var settingsRepository: SettingsRepository = InMemorySettingsRepository()
+        private set
 
     private var dataStoreInstalled = false
 
@@ -44,6 +49,7 @@ object LuminineDependencies {
         val store = createLuminineDataStore()
         sessionRepository = DataStoreSessionRepository(store)
         surveyRepository = DataStoreSurveyRepository(store)
+        settingsRepository = DataStoreSettingsRepository(store)
         dataStoreInstalled = true
     }
 
@@ -52,9 +58,11 @@ object LuminineDependencies {
         kakao: KakaoAuthClient = kakaoAuthClient,
         session: SessionRepository = sessionRepository,
         survey: SurveyRepository = surveyRepository,
+        settings: SettingsRepository = settingsRepository,
     ) {
         kakaoAuthClient = kakao
         sessionRepository = session
         surveyRepository = survey
+        settingsRepository = settings
     }
 }

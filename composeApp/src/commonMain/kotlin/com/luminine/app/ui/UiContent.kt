@@ -48,7 +48,7 @@ fun topLevelDestinations(): List<IconLabel> = listOf(
     IconLabel("차트", LuminineIcon.Chart, "기록 차트"),
     IconLabel("건강정보", LuminineIcon.Book, "건강 정보"),
     IconLabel("1:1케어", LuminineIcon.Care, "일대일 케어"),
-    IconLabel("메뉴", LuminineIcon.Menu, "메뉴"),
+    IconLabel("Shop", LuminineIcon.Shop, "루미닌 숍"),
 )
 
 fun RoutineCategory.icon(): LuminineIcon = when (this) {
