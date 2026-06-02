@@ -28,7 +28,7 @@ fun MyPageScreen(displayName: String, onOpenReadability: () -> Unit, onClose: ()
             }
             Card(shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(displayName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(displayName.ifBlank { "회원" }, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text("루미닌 회원", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

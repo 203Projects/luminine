@@ -87,7 +87,6 @@ import com.luminine.app.model.PriorityGoal
 import com.luminine.app.model.Routine
 import com.luminine.app.model.RoutineCategory
 import com.luminine.app.model.SurveyResponse
-import com.luminine.app.model.SurveySection
 import com.luminine.app.onboarding.AuthScreen
 import com.luminine.app.onboarding.SurveyFlow
 import com.luminine.app.ui.IconLabel
@@ -479,19 +478,6 @@ private fun GoalChipsRow(goals: List<PriorityGoal>) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun Avatar(initial: String, size: androidx.compose.ui.unit.Dp) {
-    Box(
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(percent = 50))
-            .background(MaterialTheme.colorScheme.primaryContainer),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(initial, color = ReverseEspresso, fontWeight = FontWeight.Bold)
     }
 }
 

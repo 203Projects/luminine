@@ -14,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.luminine.app.di.LuminineDependencies
+import com.luminine.app.model.LuminineSettings
 import com.luminine.app.ui.LuminineIcon
 import com.luminine.app.ui.components.LuminineIconView
 import com.luminine.app.ui.web.PlatformWebView
@@ -32,6 +35,9 @@ import com.luminine.app.ui.web.openInExternalBrowser
 fun WebViewScreen(url: String, title: String, onClose: () -> Unit) {
     val controller = remember { WebViewController() }
     var readingMode by remember { mutableStateOf(false) }
+    // Reader mode renders at the user's chosen font scale (settings → readerCss).
+    val settingsRepo = remember { LuminineDependencies.settingsRepository }
+    val settings by settingsRepo.observe().collectAsState(initial = LuminineSettings())
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             Row(
@@ -44,6 +50,7 @@ fun WebViewScreen(url: String, title: String, onClose: () -> Unit) {
             PlatformWebView(
                 url = url,
                 readingMode = readingMode,
+                fontScale = settings.fontScale,
                 controller = controller,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             )

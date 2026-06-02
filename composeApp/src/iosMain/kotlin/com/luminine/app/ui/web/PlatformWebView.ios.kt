@@ -12,7 +12,13 @@ import platform.WebKit.WKWebView
 
 @OptIn(ExperimentalForeignApi::class)
 @Composable
-actual fun PlatformWebView(url: String, readingMode: Boolean, controller: WebViewController, modifier: Modifier) {
+actual fun PlatformWebView(
+    url: String,
+    readingMode: Boolean,
+    fontScale: FontScale,
+    controller: WebViewController,
+    modifier: Modifier,
+) {
     UIKitView(
         modifier = modifier,
         factory = {
@@ -27,8 +33,11 @@ actual fun PlatformWebView(url: String, readingMode: Boolean, controller: WebVie
         },
         update = { web ->
             controller.onNavStateChanged(web.canGoBack, web.canGoForward)
+            // Inject reader CSS at the current font scale when on; reload to drop it when turned off.
             if (readingMode) {
-                web.evaluateJavaScript(readerInjectionJs(FontScale.Normal), null)
+                web.evaluateJavaScript(readerInjectionJs(fontScale), null)
+            } else {
+                web.reload()
             }
         },
     )

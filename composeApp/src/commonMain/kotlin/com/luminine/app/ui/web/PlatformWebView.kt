@@ -58,11 +58,13 @@ fun readerInjectionJs(fontScale: FontScale): String {
         "document.head.appendChild(s);})();"
 }
 
-// Renders a native WebView. readingMode toggles reader-CSS injection. controller carries nav state.
+// Renders a native WebView. readingMode toggles reader-CSS injection (built at the given fontScale so
+// reader mode honors the app's font setting). controller carries nav state.
 @Composable
 expect fun PlatformWebView(
     url: String,
     readingMode: Boolean,
+    fontScale: FontScale,
     controller: WebViewController,
     modifier: Modifier = Modifier,
 )
