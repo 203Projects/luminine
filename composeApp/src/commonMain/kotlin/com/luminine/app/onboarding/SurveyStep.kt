@@ -1,6 +1,5 @@
 package com.luminine.app.onboarding
 
-import com.luminine.app.model.PriorityGoal
 import com.luminine.app.model.SurveySection
 
 // PURE survey-wizard navigation + progress helpers. No Compose imports — unit-tested directly.
@@ -56,8 +55,3 @@ fun stepLabel(current: SurveyStep): String? {
     val idx = countedSteps.indexOf(current)
     return "단계 ${idx + 1}/${countedSteps.size}"
 }
-
-// S6 ranked-goal ordering: given goal -> 1-based rank (only chosen goals present), produce the
-// ordered list (1순위 first). Shared by the survey picker and Home seeding.
-fun rankedGoals(ranks: Map<PriorityGoal, Int>): List<PriorityGoal> =
-    ranks.entries.sortedBy { it.value }.map { it.key }
