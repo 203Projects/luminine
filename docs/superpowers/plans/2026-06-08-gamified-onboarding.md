@@ -251,7 +251,7 @@ class SurveyQuestionsTest {
 
 - [ ] **Step 2: Run to verify it fails.**
 
-Run: `./gradlew :composeApp:compileTestKotlinMetadata --console=plain 2>&1 | tail -8`
+Run: `./gradlew :composeApp:compileTestKotlinIosSimulatorArm64 --rerun-tasks --console=plain 2>&1 | grep -iE "\.kt:|error|BUILD"`
 Expected: FAIL — `surveyQuestions` is unresolved.
 
 - [ ] **Step 3: Implement the full registry.**
@@ -573,7 +573,7 @@ class SurveyNavTest {
 
 - [ ] **Step 2: Run to verify it fails.**
 
-Run: `./gradlew :composeApp:compileTestKotlinMetadata --console=plain 2>&1 | tail -8`
+Run: `./gradlew :composeApp:compileTestKotlinIosSimulatorArm64 --rerun-tasks --console=plain 2>&1 | grep -iE "\.kt:|error|BUILD"`
 Expected: FAIL — `nextQuestion`/`prevQuestion`/`progressFraction`/`segmentInfo`/`isAnswered` unresolved.
 
 - [ ] **Step 3: Implement the helpers in `SurveyQuestions.kt`.**

@@ -336,3 +336,61 @@ val surveyQuestions: List<SurveyQuestion> = buildList {
         body = "첫 달 혜택이 적용되었어요 — 오늘부터 나에게 맞춘 루틴을 시작해보세요.",
         ctaLabel = "홈으로 가기", kind = InfoKind.Reward))
 }
+
+// ============================================================
+// PURE NAVIGATION / PROGRESS / ANSWERED HELPERS (unit-tested)
+// ============================================================
+
+fun nextQuestion(current: SurveyQuestion): SurveyQuestion? =
+    surveyQuestions.getOrNull(surveyQuestions.indexOf(current) + 1)
+
+fun prevQuestion(current: SurveyQuestion): SurveyQuestion? =
+    surveyQuestions.getOrNull(surveyQuestions.indexOf(current) - 1)
+
+// Monotonic 0f..1f over the whole flow, by position. Reward (last) == 1f.
+fun progressFraction(current: SurveyQuestion): Float {
+    val i = surveyQuestions.indexOf(current)
+    return (i + 1).toFloat() / surveyQuestions.size
+}
+
+private val sectionOrder = SurveySection.entries // S0..S7 in declaration order
+
+// (sectionIndex 0..7, fraction-through-that-section 0f..1f) — drives the segmented progress bar.
+fun segmentInfo(current: SurveyQuestion): Pair<Int, Float> {
+    val idx = sectionOrder.indexOf(current.section)
+    val inSection = surveyQuestions.filter { it.section == current.section }
+    val pos = inSection.indexOf(current)
+    val frac = (pos + 1).toFloat() / inSection.size
+    return idx to frac
+}
+
+// Whether a question's required input is satisfied — gates the "계속" button. Multi-select and
+// rating are always "answerable" (they may legitimately be empty); Info screens are always answered.
+fun isAnswered(q: SurveyQuestion, draft: SurveyDraft): Boolean = when (q) {
+    is SurveyQuestion.Info -> true
+    is SurveyQuestion.SingleChoice<*> -> !q.required || q.get(draft) != null
+    is SurveyQuestion.MultiChoice<*> -> true
+    is SurveyQuestion.Numeric -> !q.required || q.get(draft).toDoubleOrNull() != null || q.unknownGet(draft)
+    is SurveyQuestion.NumericPair -> !q.required ||
+        (q.leftGet(draft).toDoubleOrNull() != null && q.rightGet(draft).toDoubleOrNull() != null)
+    is SurveyQuestion.Rating -> true
+    is SurveyQuestion.Ranked -> draft.goalRanks.isNotEmpty()
+    is SurveyQuestion.Identity -> draft.s0Valid
+}
+
+// "단계 3/8 · 질환·병력" eyebrow shown above the prompt (hidden for Info screens by the UI).
+fun sectionEyebrow(current: SurveyQuestion): String {
+    val (idx, _) = segmentInfo(current)
+    return "단계 ${idx + 1}/8 · ${sectionTitle(current.section)}"
+}
+
+fun sectionTitle(s: SurveySection): String = when (s) {
+    SurveySection.S0 -> "기본 인적사항"
+    SurveySection.S1 -> "신체 정보"
+    SurveySection.S2 -> "질환·병력"
+    SurveySection.S3 -> "체감 증상"
+    SurveySection.S4 -> "생활습관"
+    SurveySection.S5 -> "복용 중"
+    SurveySection.S6 -> "관심 영역"
+    SurveySection.S7 -> "예산"
+}
