@@ -185,8 +185,11 @@ private fun AnswerArea(question: SurveyQuestion, draft: SurveyDraft, onNext: () 
 // SingleChoice: large answer cards; tapping selects (gold fill + check + scale-pop) then auto-advances.
 @Composable
 private fun <T : Enum<T>> SingleChoiceArea(q: SurveyQuestion.SingleChoice<T>, draft: SurveyDraft, onNext: () -> Unit) {
-    var justPicked by remember { mutableStateOf(false) }
-    LaunchedEffect(justPicked) {
+    // Keyed to q.id so each SingleChoice screen gets a FRESH justPicked — otherwise the flag would
+    // carry across screens (same item slot) and auto-advance the moment a user navigated back to an
+    // already-answered single-choice question.
+    var justPicked by remember(q.id) { mutableStateOf(false) }
+    LaunchedEffect(q.id, justPicked) {
         if (justPicked) { delay(AUTO_ADVANCE_MS); onNext() }
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
