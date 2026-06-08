@@ -84,7 +84,7 @@ One `QuestionScreen(question, draft, onNext, onBack, onSkip)` composable renders
 
 ### Accessibility
 
-All animations check the app's **existing** reduce-motion / `isAnimationEnabled` setting and degrade to instant transitions. No new toggle is introduced. Font-scale and high-contrast settings continue to apply (the generic screen uses theme colors + scalable type).
+Correction from initial design: the app has **no** reduce-motion setting today (`LuminineSettings` = themeMode / highContrast / fontScale only). Rather than add a new toggle (scope creep into the settings model/repo/UI), the design keeps **all motion deliberately restrained** — short (≤300ms), subtle transitions (fades, fills, a small spring scale-pop), with no parallax, confetti physics, or looping animation. This is calm by construction and needs no opt-out. A central `private const val` animation-duration constant (and a single spec for the scale-pop) is used so motion can be globally toned down or disabled in one edit if a reduce-motion setting is added later. Font-scale and high-contrast settings continue to apply automatically (the generic screen uses theme colors + scalable type via the existing `LuminineTheme` density wiring).
 
 ## Testing
 
@@ -117,7 +117,7 @@ All animations check the app's **existing** reduce-motion / `isAnimationEnabled`
 
 ## Scope guardrails (YAGNI)
 
-Out of scope: backend, analytics events, A/B testing of copy, sound effects, haptics beyond Compose defaults, new persisted state (the draft already survives back/next), any new accessibility toggle. The reward remains the existing first-month-benefit message — no new rewards system.
+Out of scope: backend, analytics events, A/B testing of copy, sound effects, haptics beyond Compose defaults, new persisted state (the draft already survives back/next), any new accessibility toggle / reduce-motion setting (motion is restrained by construction instead). The reward remains the existing first-month-benefit message — no new rewards system.
 
 ## Delivery
 
