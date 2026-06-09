@@ -54,8 +54,9 @@ fun PriorityGoal.toCategories(): List<RoutineCategory> = when (this) {
 // Which RoutineCategories should start active given the survey. Categories implied by the ranked
 // goals (order preserved, deduped); S4 sedentary level (Never/Rarely) nudges Exercise in.
 // Fallback: if no goals ranked, all categories stay active (current default behavior).
-// Home content/category ordering is goal-driven (S6) by design. The doc's "체감 증상 → 홈 콘텐츠 카드
-// 노출 순서" (S3) mapping is a documented post-MVP enhancement (S3 currently collects skin symptoms only).
+// Home content/category ordering is goal-driven (S6) by design. The survey now collects all 8 S3
+// symptom groups, but the doc's "체감 증상 → 홈 콘텐츠 카드 노출 순서" (S3) mapping into seeding is a
+// documented post-MVP enhancement — seededCategories() intentionally does not yet read symptoms.
 fun seededCategories(survey: SurveyResponse): List<RoutineCategory> {
     val ordered = LinkedHashSet<RoutineCategory>()
     survey.goals.orderedGoals.forEach { it.toCategories().forEach(ordered::add) }

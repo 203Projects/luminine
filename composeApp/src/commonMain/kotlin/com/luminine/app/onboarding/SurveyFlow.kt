@@ -42,19 +42,54 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.luminine.app.model.AlcoholFrequency
 import com.luminine.app.model.AllergenComponent
+import com.luminine.app.model.BedtimeRange
+import com.luminine.app.model.BloodPressureStatus
+import com.luminine.app.model.BloodSugarStatus
+import com.luminine.app.model.BodyShapeSymptom
+import com.luminine.app.model.CaffeineIntake
+import com.luminine.app.model.CardioMetabolicCondition
+import com.luminine.app.model.CognitiveSymptom
 import com.luminine.app.model.ConsultingInterest
+import com.luminine.app.model.DietRestriction
+import com.luminine.app.model.DigestiveCondition
+import com.luminine.app.model.DigestiveSymptom
+import com.luminine.app.model.EnergySymptom
+import com.luminine.app.model.ExerciseDuration
 import com.luminine.app.model.ExerciseFrequency
+import com.luminine.app.model.ExerciseGoal
+import com.luminine.app.model.ExerciseIntensity
+import com.luminine.app.model.ExerciseType
 import com.luminine.app.model.Gender
+import com.luminine.app.model.HearingStatus
+import com.luminine.app.model.HormonalSymptom
+import com.luminine.app.model.HormoneCondition
+import com.luminine.app.model.ImmuneAllergyCondition
 import com.luminine.app.model.JobType
+import com.luminine.app.model.JointPainSymptom
+import com.luminine.app.model.MealCount
+import com.luminine.app.model.MealRegularity
 import com.luminine.app.model.MonthlyBudget
+import com.luminine.app.model.MusculoskeletalCondition
+import com.luminine.app.model.NeuroPsychCondition
+import com.luminine.app.model.OtherCondition
 import com.luminine.app.model.PriorityGoal
 import com.luminine.app.model.Region
+import com.luminine.app.model.RelaxationActivity
 import com.luminine.app.model.SkinSymptom
+import com.luminine.app.model.SleepAid
+import com.luminine.app.model.SleepDuration
+import com.luminine.app.model.SleepSymptom
+import com.luminine.app.model.SmokingStatus
+import com.luminine.app.model.StapleDietType
+import com.luminine.app.model.StressSource
 import com.luminine.app.model.Supplement
 import com.luminine.app.model.SurveyResponse
 import com.luminine.app.model.SurveySection
+import com.luminine.app.model.VisionStatus
 import com.luminine.app.model.WalkingTime
+import com.luminine.app.model.WaterIntake
 import com.luminine.app.ui.LuminineIcon
 import com.luminine.app.ui.components.IconTile
 import com.luminine.app.ui.components.LuminineIconView
@@ -197,14 +232,33 @@ private fun SectionBasicInfo(draft: SurveyDraft, onNext: () -> Unit) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = draft.birthYear?.toString() ?: "",
-                    onValueChange = { draft.birthYear = it.digitsOnly().take(4).toIntOrNull() },
-                    label = { Text("출생연도 (예: 1990)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = draft.birthYear?.toString() ?: "",
+                        onValueChange = { draft.birthYear = it.digitsOnly().take(4).toIntOrNull() },
+                        label = { Text("출생연도") },
+                        placeholder = { Text("1990") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(2f),
+                    )
+                    OutlinedTextField(
+                        value = draft.birthMonth?.toString() ?: "",
+                        onValueChange = { draft.birthMonth = it.digitsOnly().take(2).toIntOrNull()?.coerceIn(1, 12) },
+                        label = { Text("월") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = draft.birthDay?.toString() ?: "",
+                        onValueChange = { draft.birthDay = it.digitsOnly().take(2).toIntOrNull()?.coerceIn(1, 31) },
+                        label = { Text("일") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 SingleSelectChips("성별", Gender.entries, draft.gender, { it.label }) { draft.gender = it }
                 SingleSelectChips("거주 지역", Region.entries, draft.region, { it.label }) { draft.region = it }
             }
@@ -243,6 +297,13 @@ private fun SectionBodyInfo(draft: SurveyDraft, onNext: () -> Unit, onBack: () -
                 UnknownableField("근육량 (kg)", draft.muscleKg, draft.muscleUnknown,
                     onValue = { draft.muscleKg = it.digitsOnly() },
                     onUnknown = { draft.muscleUnknown = it; if (it) draft.muscleKg = "" })
+                UnknownableField("복부둘레 (cm)", draft.waistCm, draft.waistUnknown,
+                    onValue = { draft.waistCm = it.digitsOnly() },
+                    onUnknown = { draft.waistUnknown = it; if (it) draft.waistCm = "" })
+                SingleSelectChips("혈압", BloodPressureStatus.entries, draft.bloodPressure, { it.label }) { draft.bloodPressure = it }
+                SingleSelectChips("혈당", BloodSugarStatus.entries, draft.bloodSugar, { it.label }) { draft.bloodSugar = it }
+                SingleSelectChips("시력", VisionStatus.entries, draft.vision, { it.label }) { draft.vision = it }
+                SingleSelectChips("청력", HearingStatus.entries, draft.hearing, { it.label }) { draft.hearing = it }
             }
         }
         item { SectionFooter(nextEnabled = draft.s1Valid, onNext = onNext, onBack = onBack) }
@@ -295,11 +356,40 @@ private fun SectionConditions(draft: SurveyDraft, onNext: () -> Unit, onBack: ()
     SectionScaffold {
         item {
             FieldCard("질환·병력", LuminineIcon.Report) {
-                Text("현재 진단·관리 중인 질환이 있다면 자유롭게 적어주세요. 영양제 추천 시 금기 성분을 걸러내는 데 사용됩니다.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("현재 진단·관리 중인 질환을 선택하세요. 영양제 추천 시 금기 성분을 걸러내는 데 사용됩니다.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                LabeledMultiSelect("심혈관·대사", CardioMetabolicCondition.entries, draft.cardioMetabolic, { it.label })
+                LabeledMultiSelect("소화기", DigestiveCondition.entries, draft.digestiveConditions, { it.label })
+                LabeledMultiSelect("근골격", MusculoskeletalCondition.entries, draft.musculoskeletal, { it.label })
+            }
+        }
+        item {
+            FieldCard("질환·병력 (계속)", LuminineIcon.Report) {
+                LabeledMultiSelect("호르몬·내분비", HormoneCondition.entries, draft.hormoneConditions, { it.label })
+                LabeledMultiSelect("신경·정신", NeuroPsychCondition.entries, draft.neuroPsych, { it.label })
+                LabeledMultiSelect("면역·알레르기", ImmuneAllergyCondition.entries, draft.immuneAllergy, { it.label })
+                if (ImmuneAllergyCondition.FoodAllergy in draft.immuneAllergy) {
+                    OutlinedTextField(
+                        value = draft.foodAllergyText,
+                        onValueChange = { draft.foodAllergyText = it },
+                        label = { Text("식품 알레르기 직접 입력 (예: 복숭아)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (ImmuneAllergyCondition.EnvironmentalAllergy in draft.immuneAllergy) {
+                    OutlinedTextField(
+                        value = draft.environmentalAllergyText,
+                        onValueChange = { draft.environmentalAllergyText = it },
+                        label = { Text("환경성 알레르기 직접 입력 (예: 꽃가루)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                LabeledMultiSelect("기타", OtherCondition.entries, draft.otherConditions, { it.label })
                 OutlinedTextField(
                     value = draft.conditionsCustom,
                     onValueChange = { draft.conditionsCustom = it },
-                    label = { Text("질환·병력 (예: 고혈압, 갑상선)") },
+                    label = { Text("기타 직접 입력") },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -313,9 +403,28 @@ private fun SectionConditions(draft: SurveyDraft, onNext: () -> Unit, onBack: ()
 private fun SectionSymptoms(draft: SurveyDraft, onNext: () -> Unit, onBack: () -> Unit, onSkip: () -> Unit) {
     SectionScaffold {
         item {
-            FieldCard("걱정되는 건강 문제", LuminineIcon.Skin) {
-                Text("요즘 가장 신경 쓰이는 피부·외모 증상을 선택하세요. 홈 화면 콘텐츠 노출에 반영됩니다.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                MultiSelectChipGrid(SkinSymptom.entries, draft.skinSymptoms, { it.label })
+            FieldCard("걱정되는 건강 문제", LuminineIcon.Energy) {
+                Text("요즘 가장 신경 쓰이는 증상을 선택하세요. 홈 화면 콘텐츠 노출에 반영됩니다.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                LabeledMultiSelect("에너지·피로", EnergySymptom.entries, draft.energySymptoms, { it.label })
+                LabeledMultiSelect("체형·체중", BodyShapeSymptom.entries, draft.bodyShapeSymptoms, { it.label })
+            }
+        }
+        item {
+            FieldCard("피부·소화", LuminineIcon.Skin) {
+                LabeledMultiSelect("피부·외모", SkinSymptom.entries, draft.skinSymptoms, { it.label })
+                LabeledMultiSelect("소화·장", DigestiveSymptom.entries, draft.digestiveSymptoms, { it.label })
+            }
+        }
+        item {
+            FieldCard("수면·정신", LuminineIcon.Moon) {
+                LabeledMultiSelect("수면", SleepSymptom.entries, draft.sleepSymptoms, { it.label })
+                LabeledMultiSelect("정신·인지", CognitiveSymptom.entries, draft.cognitiveSymptoms, { it.label })
+            }
+        }
+        item {
+            FieldCard("호르몬·관절", LuminineIcon.Body) {
+                LabeledMultiSelect("호르몬·성", HormonalSymptom.entries, draft.hormonalSymptoms, { it.label })
+                LabeledMultiSelect("관절·통증", JointPainSymptom.entries, draft.jointPainSymptoms, { it.label })
             }
         }
         item { SectionFooter(nextEnabled = true, onNext = onNext, onBack = onBack, onSkip = onSkip) }
@@ -327,15 +436,48 @@ private fun SectionSymptoms(draft: SurveyDraft, onNext: () -> Unit, onBack: () -
 private fun SectionLifestyle(draft: SurveyDraft, onNext: () -> Unit, onBack: () -> Unit, onSkip: () -> Unit) {
     SectionScaffold {
         item {
-            FieldCard("운동 습관", LuminineIcon.Dumbbell) {
-                SingleSelectChips("현재 운동 여부", ExerciseFrequency.entries, draft.exerciseFrequency, { it.label }) { draft.exerciseFrequency = it }
-                Text("운동 수준은 루틴 난이도와 추천 콘텐츠 조정에 사용됩니다.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FieldCard("식사 패턴", LuminineIcon.Plate) {
+                SingleSelectChips("하루 식사 횟수", MealCount.entries, draft.mealCount, { it.label }) { draft.mealCount = it }
+                SingleSelectChips("식사 규칙성", MealRegularity.entries, draft.mealRegularity, { it.label }) { draft.mealRegularity = it }
+                SingleSelectChips("주식 유형", StapleDietType.entries, draft.stapleDietType, { it.label }) { draft.stapleDietType = it }
+                LabeledMultiSelect("식이 제한", DietRestriction.entries, draft.dietRestrictions, { it.label })
+                SingleSelectChips("하루 수분 섭취", WaterIntake.entries, draft.waterIntake, { it.label }) { draft.waterIntake = it }
+                SingleSelectChips("음주 빈도", AlcoholFrequency.entries, draft.alcoholFrequency, { it.label }) { draft.alcoholFrequency = it }
+                SingleSelectChips("흡연 여부", SmokingStatus.entries, draft.smokingStatus, { it.label }) { draft.smokingStatus = it }
+                SingleSelectChips("카페인 섭취", CaffeineIntake.entries, draft.caffeineIntake, { it.label }) { draft.caffeineIntake = it }
             }
         }
         item {
-            FieldCard("수면·스트레스", LuminineIcon.Moon) {
+            FieldCard("운동 습관", LuminineIcon.Dumbbell) {
+                SingleSelectChips("현재 운동 여부", ExerciseFrequency.entries, draft.exerciseFrequency, { it.label }) { draft.exerciseFrequency = it }
+                LabeledMultiSelect("운동 종류", ExerciseType.entries, draft.exerciseTypes, { it.label })
+                SingleSelectChips("운동 강도", ExerciseIntensity.entries, draft.exerciseIntensity, { it.label }) { draft.exerciseIntensity = it }
+                SingleSelectChips("1회 운동 시간", ExerciseDuration.entries, draft.exerciseDuration, { it.label }) { draft.exerciseDuration = it }
+                LabeledMultiSelect("운동 목표", ExerciseGoal.entries, draft.exerciseGoals, { it.label })
+            }
+        }
+        item {
+            FieldCard("수면", LuminineIcon.Moon) {
+                SingleSelectChips("평균 수면 시간", SleepDuration.entries, draft.sleepDuration, { it.label }) { draft.sleepDuration = it }
+                SingleSelectChips("취침 시각", BedtimeRange.entries, draft.bedtime, { it.label }) { draft.bedtime = it }
                 RatingRow("수면의 질", draft.sleepQuality) { draft.sleepQuality = it }
+                SingleSelectChips("수면 보조제", SleepAid.entries, draft.sleepAid, { it.label }) { draft.sleepAid = it }
+                if (draft.sleepAid == SleepAid.Other) {
+                    OutlinedTextField(
+                        value = draft.sleepAidOtherText,
+                        onValueChange = { draft.sleepAidOtherText = it },
+                        label = { Text("수면 보조제 직접 입력") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+        item {
+            FieldCard("스트레스·정신", LuminineIcon.Mind) {
                 RatingRow("스트레스 수준", draft.stressLevel) { draft.stressLevel = it }
+                LabeledMultiSelect("스트레스 원인", StressSource.entries, draft.stressSources, { it.label })
+                LabeledMultiSelect("스트레스 해소 활동", RelaxationActivity.entries, draft.relaxationActivities, { it.label })
             }
         }
         item { SectionFooter(nextEnabled = true, onNext = onNext, onBack = onBack, onSkip = onSkip) }
@@ -372,6 +514,13 @@ private fun SectionSupplements(draft: SurveyDraft, onNext: () -> Unit, onBack: (
             FieldCard("복용 중인 영양제", LuminineIcon.Supplement) {
                 Text("성분 중복·충돌을 제외한 추천을 위해 사용됩니다.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 MultiSelectChipGrid(Supplement.entries, draft.supplements, { it.label })
+                OutlinedTextField(
+                    value = draft.supplementOtherText,
+                    onValueChange = { draft.supplementOtherText = it },
+                    label = { Text("기타 직접 입력") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         item {
@@ -391,6 +540,13 @@ private fun SectionSupplements(draft: SurveyDraft, onNext: () -> Unit, onBack: (
                 }
                 Text("알레르기 성분", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 MultiSelectChipGrid(AllergenComponent.entries, draft.allergens, { it.label })
+                OutlinedTextField(
+                    value = draft.allergenOtherText,
+                    onValueChange = { draft.allergenOtherText = it },
+                    label = { Text("기타 직접 입력") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         item { SectionFooter(nextEnabled = true, onNext = onNext, onBack = onBack, onSkip = onSkip) }
@@ -473,6 +629,16 @@ private fun RewardScreen(onFinish: () -> Unit) {
         Button(onClick = onFinish, modifier = Modifier.fillMaxWidth().height(52.dp), shape = CardShape) {
             Text("홈으로 가기")
         }
+    }
+}
+
+// Group-labelled multi-select: a sub-heading Text above a MultiSelectChipGrid, for the grouped
+// S2 condition / S3 symptom / S4 lifestyle enums. Writes into the draft's SnapshotStateList.
+@Composable
+private fun <T> LabeledMultiSelect(label: String, options: List<T>, selected: MutableList<T>, labelOf: (T) -> String) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        MultiSelectChipGrid(options, selected, labelOf)
     }
 }
 
