@@ -189,8 +189,11 @@ private fun <T : Enum<T>> SingleChoiceArea(q: SurveyQuestion.SingleChoice<T>, dr
     // carry across screens (same item slot) and auto-advance the moment a user navigated back to an
     // already-answered single-choice question.
     var justPicked by remember(q.id) { mutableStateOf(false) }
-    LaunchedEffect(q.id, justPicked) {
-        if (justPicked) { delay(AUTO_ADVANCE_MS); onNext() }
+    // Suppress auto-advance while an extra free-text field is showing (e.g. SleepAid.Other) — the user
+    // needs to type into it; they advance with 계속 instead.
+    val extraShowing = q.extraText?.showWhen?.invoke(draft) == true
+    LaunchedEffect(q.id, justPicked, extraShowing) {
+        if (justPicked && !extraShowing) { delay(AUTO_ADVANCE_MS); onNext() }
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         q.options.forEach { opt ->
@@ -199,6 +202,9 @@ private fun <T : Enum<T>> SingleChoiceArea(q: SurveyQuestion.SingleChoice<T>, dr
                 q.set(draft, opt)
                 justPicked = true
             }
+        }
+        q.extraText?.let { e ->
+            if (e.showWhen(draft)) ConditionalTextField(e.label, e.get(draft)) { e.set(draft, it) }
         }
     }
 }
@@ -226,6 +232,10 @@ private fun <T : Enum<T>> MultiChoiceArea(q: SurveyQuestion.MultiChoice<T>, draf
             ConditionalTextField("환경성 알레르기 직접 입력 (예: 꽃가루)", draft.environmentalAllergyText) {
                 draft.environmentalAllergyText = it
             }
+        }
+        // Always-on "기타 직접 입력" free-text (질환·영양제·알레르기 groups whose enum has no 기타 member).
+        q.extraText?.let { e ->
+            if (e.showWhen(draft)) ConditionalTextField(e.label, e.get(draft)) { e.set(draft, it) }
         }
     }
 }
@@ -410,9 +420,12 @@ private fun PrescriptionArea(draft: SurveyDraft) {
 // the celebratory headline.
 @Composable
 private fun CelebrationArea(q: SurveyQuestion.Info, icon: LuminineIcon, big: Boolean = false) {
-    var shown by remember { mutableStateOf(false) }
+    // Keyed to q.id so the scale-in entrance plays FRESH for each checkpoint/reward — otherwise the
+    // same item slot keeps `shown == true` from a previously-viewed celebration and the animation is
+    // skipped when the user re-reaches a checkpoint (e.g. after back-navigation).
+    var shown by remember(q.id) { mutableStateOf(false) }
     val scale by animateFloatAsState(targetValue = if (shown) 1f else 0.7f, animationSpec = spring(dampingRatio = 0.5f), label = "pop")
-    LaunchedEffect(Unit) { shown = true }
+    LaunchedEffect(q.id) { shown = true }
     Column(
         Modifier.fillMaxWidth().heightIn(min = 360.dp).padding(top = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

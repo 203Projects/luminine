@@ -32,10 +32,11 @@ fun SurveyFlow(
     fun goBack() { prevQuestion(current)?.let { index = surveyQuestions.indexOf(it) } }
     fun skip() {
         draft.markSkipped(current.section)
-        // "나중에 입력" skips the REST of this section (and its checkpoint) — jump to the next
-        // section's first question, matching the old section-level skip intent.
-        val nextDiff = surveyQuestions.drop(index + 1).firstOrNull { it.section != current.section }
-        if (nextDiff == null) onComplete(draft.toResponse()) else index = surveyQuestions.indexOf(nextDiff)
+        // "나중에 입력" skips the rest of this section (and its checkpoint), landing on the next section's
+        // first question or the reward finale (see skipTarget). Never completes directly — that keeps the
+        // reward screen reachable even when the last (S7) section is skipped.
+        val target = skipTarget(current)
+        if (target == null) onComplete(draft.toResponse()) else index = surveyQuestions.indexOf(target)
     }
 
     QuestionScreen(

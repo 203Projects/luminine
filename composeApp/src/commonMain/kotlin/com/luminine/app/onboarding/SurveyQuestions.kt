@@ -79,6 +79,7 @@ sealed interface SurveyQuestion {
         val get: (SurveyDraft) -> T?,
         val set: (SurveyDraft, T) -> Unit,
         val required: Boolean = false, // gates flow completion for required sections
+        val extraText: ExtraText? = null, // e.g. 수면 보조제 "기타" note, gated on the Other option
     ) : SurveyQuestion
 
     // Multi-choice Set — tap to toggle, explicit "계속". Optional conditional free-text.
@@ -92,6 +93,7 @@ sealed interface SurveyQuestion {
         val labelOf: (T) -> String,
         val selected: (SurveyDraft) -> MutableList<T>, // the draft's SnapshotStateList
         val conditional: ConditionalText<T>? = null,
+        val extraText: ExtraText? = null, // always-on "기타 직접 입력" (질환/영양제/알레르기)
     ) : SurveyQuestion
 
     // Numeric input (키/체중/복부둘레), optionally "모름"-able.
@@ -174,6 +176,15 @@ data class ConditionalText<T>(
     val set: (SurveyDraft, String) -> Unit,
 )
 
+// An extra free-text field rendered below a choice question (the "기타 직접 입력" inputs). Always shown
+// by default ([showWhen] = always); pass a predicate to gate it (e.g. only when SleepAid.Other is set).
+data class ExtraText(
+    val label: String,
+    val get: (SurveyDraft) -> String,
+    val set: (SurveyDraft, String) -> Unit,
+    val showWhen: (SurveyDraft) -> Boolean = { true },
+)
+
 // S6 ranked-goal ordering (relocated verbatim from SurveyStep.kt): goal -> 1-based rank -> ordered list.
 fun rankedGoals(ranks: Map<PriorityGoal, Int>): List<PriorityGoal> =
     ranks.entries.sortedBy { it.value }.map { it.key }
@@ -240,7 +251,9 @@ val surveyQuestions: List<SurveyQuestion> = buildList {
     // `conditional`. The second (environmental) is rendered inside QuestionScreen by also checking
     // ImmuneAllergyCondition.EnvironmentalAllergy directly. Handled by the later screen task.
     add(SurveyQuestion.MultiChoice(id = "s2.other", section = S2, prompt = "그 밖에 해당하는 질환이 있나요?", skippable = true,
-        options = OtherCondition.entries, labelOf = { it.label }, selected = { it.otherConditions }))
+        options = OtherCondition.entries, labelOf = { it.label }, selected = { it.otherConditions },
+        // OtherCondition has no "기타" member → always-on free-text (matches the prior full-survey UI).
+        extraText = ExtraText("기타 직접 입력", { it.conditionsCustom }, { d, v -> d.conditionsCustom = v })))
     add(checkpoint("s2.done", S2, "솔직하게 답해주셔서 감사해요", calm = true))
 
     // ---------- S3 체감 증상 (skippable) — one screen per group ----------
@@ -260,7 +273,7 @@ val surveyQuestions: List<SurveyQuestion> = buildList {
         options = HormonalSymptom.entries, labelOf = { it.label }, selected = { it.hormonalSymptoms }))
     add(SurveyQuestion.MultiChoice(id = "s3.joint", section = S3, prompt = "관절·통증은 어떤가요?", skippable = true,
         options = JointPainSymptom.entries, labelOf = { it.label }, selected = { it.jointPainSymptoms }))
-    add(checkpoint("s3.done", S3, "거의 절반 왔어요!"))
+    add(checkpoint("s3.done", S3, "거의 절반 왔어요!", calm = true))
 
     // ---------- S4 생활습관 (skippable) ----------
     add(SurveyQuestion.SingleChoice(id = "s4.meals", section = S4, prompt = "하루 몇 끼 드시나요?", skippable = true,
@@ -296,7 +309,10 @@ val surveyQuestions: List<SurveyQuestion> = buildList {
     add(SurveyQuestion.Rating(id = "s4.sleepq", section = S4, prompt = "수면의 질은 어떤가요?", skippable = true,
         get = { it.sleepQuality }, set = { d, v -> d.sleepQuality = v }))
     add(SurveyQuestion.SingleChoice(id = "s4.sleepaid", section = S4, prompt = "수면 보조제를 쓰나요?", skippable = true,
-        options = SleepAid.entries, labelOf = { it.label }, get = { it.sleepAid }, set = { d, v -> d.sleepAid = v }))
+        options = SleepAid.entries, labelOf = { it.label }, get = { it.sleepAid }, set = { d, v -> d.sleepAid = v },
+        // "기타" note appears only when SleepAid.Other is chosen (mirrors toResponse()'s gating).
+        extraText = ExtraText("수면 보조제 직접 입력", { it.sleepAidOtherText }, { d, v -> d.sleepAidOtherText = v },
+            showWhen = { it.sleepAid == SleepAid.Other })))
     add(SurveyQuestion.Rating(id = "s4.stress", section = S4, prompt = "스트레스 수준은 어떤가요?", skippable = true,
         get = { it.stressLevel }, set = { d, v -> d.stressLevel = v }))
     add(SurveyQuestion.MultiChoice(id = "s4.stresssrc", section = S4, prompt = "주요 스트레스 원인은요?", skippable = true,
@@ -307,14 +323,17 @@ val surveyQuestions: List<SurveyQuestion> = buildList {
 
     // ---------- S5 복용 중 (skippable) ----------
     add(SurveyQuestion.MultiChoice(id = "s5.supps", section = S5, prompt = "복용 중인 영양제가 있나요?", skippable = true,
-        options = Supplement.entries, labelOf = { it.label }, selected = { it.supplements }))
+        options = Supplement.entries, labelOf = { it.label }, selected = { it.supplements },
+        extraText = ExtraText("기타 직접 입력", { it.supplementOtherText }, { d, v -> d.supplementOtherText = v })))
     add(SurveyQuestion.MultiChoice(id = "s5.allergen", section = S5, prompt = "알레르기 성분이 있나요?", skippable = true,
-        options = AllergenComponent.entries, labelOf = { it.label }, selected = { it.allergens }))
-    // 처방약 여부 (있음/없음 + conditional note) is a small bespoke screen — rendered as an Info-less
-    // special case in QuestionScreen keyed by id "s5.prescription". Handled by the later screen task.
+        options = AllergenComponent.entries, labelOf = { it.label }, selected = { it.allergens },
+        extraText = ExtraText("기타 직접 입력", { it.allergenOtherText }, { d, v -> d.allergenOtherText = v })))
+    // 처방약 여부 (있음/없음 + conditional note) is a small bespoke screen — modeled as Info(Notice)
+    // but dispatched specially in QuestionScreen (keyed by id "s5.prescription") to render
+    // PrescriptionArea (있음/없음 chips + a conditional note field) instead of the plain NoticeArea.
     add(SurveyQuestion.Info(id = "s5.prescription", section = S5, prompt = "처방약을 복용 중인가요?",
         body = "영양제 추천 충돌을 막기 위해 사용돼요.", ctaLabel = "계속", kind = InfoKind.Notice)) // rendered specially
-    add(checkpoint("s5.done", S5, "거의 다 왔어요"))
+    add(checkpoint("s5.done", S5, "거의 다 왔어요", calm = true))
 
     // ---------- S6 관심영역 우선순위 (required) ----------
     add(SurveyQuestion.Ranked(id = "s6.goals", section = S6,
@@ -346,6 +365,16 @@ fun nextQuestion(current: SurveyQuestion): SurveyQuestion? =
 
 fun prevQuestion(current: SurveyQuestion): SurveyQuestion? =
     surveyQuestions.getOrNull(surveyQuestions.indexOf(current) - 1)
+
+// Where "나중에 입력" lands: the first later question in a DIFFERENT section, or the reward (which shares
+// S7's section tag but ends the flow — so skipping the last section still shows the finale). null means
+// nothing left → the driver completes. Pure so it's unit-tested (the skip→reward blocker regression).
+fun skipTarget(current: SurveyQuestion): SurveyQuestion? {
+    val i = surveyQuestions.indexOf(current)
+    return surveyQuestions.drop(i + 1).firstOrNull {
+        it.section != current.section || (it is SurveyQuestion.Info && it.kind == InfoKind.Reward)
+    }
+}
 
 // Monotonic 0f..1f over the whole flow, by position. Reward (last) == 1f.
 fun progressFraction(current: SurveyQuestion): Float {

@@ -4,6 +4,7 @@ import com.luminine.app.model.PriorityGoal
 import com.luminine.app.model.SurveySection
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -108,5 +109,57 @@ class SurveyNavTest {
         assertEquals(false, isAnswered(ranked, draft))
         draft.toggleGoal(PriorityGoal.SkinAging)
         assertTrue(isAnswered(ranked, draft))
+    }
+}
+
+// Regressions for the adversarial-review findings (2026-06-09).
+class SurveyReviewFixTest {
+    private val reward = surveyQuestions.last()
+
+    // BLOCKER: skipping any S7 question must land on the reward, not complete prematurely.
+    @Test fun skipFromAnyS7QuestionLandsOnReward() {
+        val s7Skippable = surveyQuestions.filter {
+            it.section == com.luminine.app.model.SurveySection.S7 && it.skippable
+        }
+        assertTrue(s7Skippable.isNotEmpty(), "expected skippable S7 questions")
+        s7Skippable.forEach { q ->
+            assertEquals(reward, skipTarget(q), "skip from ${q.id} should land on the reward")
+        }
+    }
+
+    // skipTarget for a mid-flow skippable section lands on the NEXT section's first question.
+    @Test fun skipFromS2LandsOnNextSectionNotReward() {
+        val s2 = surveyQuestions.first { it.section == com.luminine.app.model.SurveySection.S2 && it.skippable }
+        val target = skipTarget(s2)
+        assertNotNull(target)
+        assertTrue(target!!.section != com.luminine.app.model.SurveySection.S2)
+        assertTrue(!(target is SurveyQuestion.Info && target.kind == InfoKind.Reward), "should not be the reward")
+    }
+
+    // Tone guardrail: checkpoints for the medical/sensitive sections (S2/S3/S5) are calm (empty prompt).
+    @Test fun medicalSectionCheckpointsAreCalm() {
+        listOf("s2.done", "s3.done", "s5.done").forEach { id ->
+            val cp = surveyQuestions.first { it.id == id } as SurveyQuestion.Info
+            assertEquals("", cp.prompt, "$id checkpoint should be calm (empty prompt)")
+        }
+    }
+
+    // The 4 free-text fields the prior full-survey UI collected must be reachable in the gamified flow.
+    @Test fun droppedFreeTextFieldsAreWiredViaExtraText() {
+        fun extraOf(id: String): ExtraText? = when (val q = surveyQuestions.first { it.id == id }) {
+            is SurveyQuestion.MultiChoice<*> -> q.extraText
+            is SurveyQuestion.SingleChoice<*> -> q.extraText
+            else -> null
+        }
+        listOf("s2.other", "s4.sleepaid", "s5.supps", "s5.allergen").forEach { id ->
+            assertNotNull(extraOf(id), "$id must declare an extraText free-text field")
+        }
+        // sleepaid's note is gated on SleepAid.Other; the others are always-on.
+        val sleep = extraOf("s4.sleepaid")!!
+        val d0 = SurveyDraft()
+        assertTrue(!sleep.showWhen(d0), "sleepaid extra hidden until Other selected")
+        d0.sleepAid = com.luminine.app.model.SleepAid.Other
+        assertTrue(sleep.showWhen(d0), "sleepaid extra shows when Other selected")
+        assertTrue(extraOf("s5.supps")!!.showWhen(SurveyDraft()), "supplement extra is always-on")
     }
 }
