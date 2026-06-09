@@ -68,7 +68,7 @@ import com.luminine.app.model.WaterIntake
 // back/next navigation. Compose-aware (mutableStateOf). Converts to the canonical, persisted
 // SurveyResponse via toResponse(). NOT unit-tested directly via Compose UI — but the pure mapping
 // (toResponse(), validity gates) IS exercised off-composition (global snapshot) by
-// SurveyDraftMappingTest, and the rank helper (rankedGoals) lives in SurveyStep.kt.
+// SurveyDraftMappingTest, and the rank helper (rankedGoals) lives in SurveyQuestions.kt.
 //
 // This draft now collects the FULL v1.0 survey model (every field of SurveyModels.kt), not just an
 // MVP subset: all S0 birthdate fields, all S1 categorical body statuses + 복부둘레, the 7 S2 condition
